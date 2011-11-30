@@ -8,11 +8,12 @@ use warnings;
 use Exporter 'import';
 our @EXPORT_OK = qw(
     $STRESS $NO_STRESS $RELAX $PSTRESS $GOOD $WEAK_GOOD $WEAK_BAD $STRONG_BAD
-    $GOB $SM $CMENE $BRIVLA $BRIVLAS $GISMU $CMAVO $CM_SIMPLE $LUJVO $FUH3 $FUH4
-    $CM_0 $GISMU_ $LUJVO_ $C $V $L $H $Y $WS classify_valsi);
+    $GOB %SM %SM_LIST $WEAK_SYLL $CMENE $BRIVLA $BRIVLA_ $BRIVLAS $GISMU $CMAVO
+    $CM_SIMPLE $LUJVO $FUH3 $FUH4 $CM_0 $GISMU_ $LUJVO_
+    $C $V $L $H $Y $X $WS classify_valsi fix_word);
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK] );
 
-our $VERSION = 0.000_003;
+our $VERSION = 0.000_004;
 
 # By Stephen Pollei
 # Copyright (C) 2011, "Stephen Pollei"<stephen.pollei@gmail.com>
@@ -51,6 +52,7 @@ sub cmavo_escape {
 
 
 our $WS =qr/[.\s]/ix;
+our $NOT_WS =qr/ [^\s.]+ /;
 our $C =qr/[bcdfgjklmnprstvxz],?/ix;
 our $V =qr/[aeiou],?/ix;
 our $VY =qr/[aeiouy],?/ix;
@@ -181,7 +183,8 @@ our $CM_CY =qr/ (?! $CM_BAD ) (?: $C$Y) (?! $VHY) /ix;
 our $CM_CYBOI =qr/ $CM_CY+ (?:(?!$CM_BAD)boi)? (?! $VHY) /ix;
 our $CM_YHY = qr/ (?! $CM_BAD) y'y (?! $VHY) /ix;
 our $CM_YHYBU =qr/ $CM_YHY (?:(?! $CM_BAD)bu)? (?! $VHY) /ix;
-our $CM_SIMPLE =qr/ ^ $WS* (?: $CM_0+ | $CM_YBU | $CM_CYBOI | $CM_YHYBU ) $WS* $ /ix;
+our $CM_SIMPLE =qr/  $WS* (?: $CM_0+ | $CM_YBU | $CM_CYBOI | $CM_YHYBU ) $WS*  /ix;
+our $CMAVO =qr/  $WS* (?: $CM_0 | $CM_Y | $CM_CY | $CM_YHY ) $WS*  /ix;
 
 sub make_cmavo_pat {
   my @li = map (cmavo_escape($_)   , @_ ) ;
@@ -221,12 +224,12 @@ our %SM_LIST= (
    CEI =>  [qw( cei )] ,
    CO =>  [qw( co )] ,
    COI =>  [qw( be'e co'o coi fe'o fi'i je'e ju'i
-      ke'o ki'e mi'e mu'o nu'e pe'u re'i ta'a vi'o )] ,
+      ke'o ki'e mi'e mu'o nu'e pe'u re'i ta'a vi'o ki'ai sa'ei)] ,
    CU =>  [qw( cu )] ,
    CUhE =>  [qw( cu'e nau )] ,
    DAhO =>  [qw( da'o )] ,
    DOhU =>  [qw( do'u )] ,
-   DOI =>  [qw( doi )] ,
+   DOI =>  [qw( doi da'oi)] ,
    FA =>  [qw( fa fai fe fi fi'a fo fu )] ,
    FAhA =>  [qw( be'a bu'u ca'u du'a fa'a ga'u ne'a ne'i ne'u ni'a
       pa'o re'o ri'u ru'u te'e ti'a to'o vu'a ze'o zo'a zo'i zu'a )] ,
@@ -258,14 +261,14 @@ our %SM_LIST= (
    KOhA =>  [qw( ce'u da da'e da'u de de'e de'u dei di di'e di'u do
       do'i do'o fo'a fo'e fo'i fo'o fo'u ke'a ko ko'a ko'e ko'i ko'o
       ko'u ma ma'a mi mi'a mi'o ra ri ru ta ti tu vo'a
-      vo'e vo'i vo'o vo'u zi'o zo'e zu'i )] ,
+      vo'e vo'i vo'o vo'u zi'o zo'e zu'i xai)] ,
    KU =>  [qw( ku )] ,
    KUhE =>  [qw( ku'e )] ,
    KUhO =>  [qw( ku'o )] ,
    LA =>  [qw( la la'i lai )] ,
    LAhE =>  [qw( la'e lu'a lu'e lu'i lu'o tu'a vu'i )] ,
    LAU =>  [qw( ce'a lau tau zai )] ,
-   LE =>  [qw( le le'e le'i lei lo lo'e lo'i loi )] ,
+   LE =>  [qw( le le'e le'i lei lo lo'e lo'i loi xo'e)] ,
    LEhU =>  [qw( le'u )] ,
    LI =>  [qw( li me'o )] ,
    LIhU =>  [qw( li'u )] ,
@@ -283,7 +286,7 @@ our %SM_LIST= (
    NA =>  [qw( ja'a na )] ,
    NAhE =>  [qw( je'a na'e no'e to'e )] ,
    NAhU =>  [qw( na'u )] ,
-   NAI =>  [qw( nai )] ,
+   NAI =>  [qw( nai ja'ai)] ,
    NIhE =>  [qw( ni'e )] ,
    NIhO =>  [qw( ni'o no'i )] ,
    NOI =>  [qw( noi poi voi )] ,
@@ -294,12 +297,12 @@ our %SM_LIST= (
    PA =>  [qw( bi ce'i ci ci'i da'a dau du'e fei fi'u gai jau ji'i
        ka'o ki'o ma'u me'i mo'a mu ni'u no no'o pa pai pi pi'e ra'e
        rau re rei ro so so'a so'e so'i so'o so'u su'e su'o
-       te'o tu'o vai vo xa xo za'u ze )] ,
+       te'o tu'o vai vo xa xo za'u ze xei)] ,
    PEhE =>  [qw( pe'e )] ,
    PEhO =>  [qw( pe'o )] ,
    PU =>  [qw( ba ca pu )] ,
    RAhO =>  [qw( ra'o )] ,
-   ROI =>  [qw( re'u roi )] ,
+   ROI =>  [qw( re'u roi ba'oi mu'ei)] ,
    SA =>  [qw( sa )] ,
    SE =>  [qw( se te ve xe )] ,
    SEhU =>  [qw( se'u )] ,
@@ -341,18 +344,20 @@ our %SM_LIST= (
    ZO =>  [qw( zo )] ,
    ZOhU =>  [qw( zo'u )] ,
    ZOI =>  [qw( la'o zoi )] ,
+   ZOhOI => [qw(la'oi zo'oi)],
+   MEhOI => [q(me'oi)], FUhEI => [q(fu'ei)], FUhOI => [q(fu'oi)],
+   LOhAI => [q(lo'ai)], SAhAI => [q(sa'ai)], LEhAI => [q(le'ai)],
+   ZEhEI => [q(ze'ei)]
  ) ;
 
 for my $skey (keys %SM_LIST) {
   $SM{$skey} = make_cmavo_pat($SM_LIST{$skey}); }
 
 
-# TODO FIXME add these words types for completeness
-our $SM_BRIVLA;
-our $SM_CMENE;
-our $SM_CMAVO_FORM;
-our $SM_ANYTHING =qr/ [^\s]+ /;
-# TODO FIXME add these words types for completeness
+$SM{BRIVLA}=$BRIVLA;
+$SM{CMENE}=$CMENE;
+$SM{CMAVO}=$CMAVO;
+$SM{ANYTHING}=$NOT_WS;
 
 #TODO these tests should be more comprehensive and be moved elsewhere
 #TODO so that they aren't run all the time and take up space here
@@ -424,6 +429,13 @@ sub classify_valsi {
   if ($word  =~ $CM_SIMPLE) {return 'c';}
   return 'U';
 }
+
+#FIXME TODO STUB
+sub fix_word {
+  my ($word) =@_;
+  return q{.. ..} . $word . q{.. ..};
+}
+#FIXME TODO STUB
 
 
 1;
