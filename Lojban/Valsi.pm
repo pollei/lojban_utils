@@ -10,10 +10,10 @@ our @EXPORT_OK = qw(
     $STRESS $NO_STRESS $RELAX $PSTRESS $GOOD $WEAK_GOOD $WEAK_BAD $STRONG_BAD
     $GOB %SM %SM_LIST $WEAK_SYLL $CMENE $BRIVLA $BRIVLA_ $BRIVLAS $GISMU $CMAVO
     $CM_SIMPLE $LUJVO $FUH3 $FUH4 $CM_0 $GISMU_ $LUJVO_
-    $C $V $L $H $Y $X $WS classify_valsi fix_word);
+    $C $V $L $H $Y $X $WS $RAW_NUM classify_valsi fix_word);
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK] );
 
-our $VERSION = 0.000_004;
+our $VERSION = 0.000_005;
 
 # By Stephen Pollei
 # Copyright (C) 2011, "Stephen Pollei"<stephen.pollei@gmail.com>
@@ -51,7 +51,7 @@ sub cmavo_escape {
 }
 
 
-our $WS =qr/[.\s]/ix;
+our $WS =qr/ [\.\s[:punct:]] /ix;
 our $NOT_WS =qr/ [^\s.]+ /;
 our $C =qr/[bcdfgjklmnprstvxz],?/ix;
 our $V =qr/[aeiou],?/ix;
@@ -123,7 +123,7 @@ our $M_HYPH =qr/ [lmnr] \,? (?= $C ) /ix;
 
 our $B_C3 = qr/ $C3 $CYC $L* $V (?! $VHY) /ix;
 our $B_V3 = qr/ $VHH{1,3} $ICC $L* $V (?! $VHY) | $ICC $C* $VH+ $YC+ $L* $V (?! $VHY) /ix;
-our $BRIVLA_ = qr/$B_C3 | $B_V3 /ix;
+our $BRIVLA_ = qr/ $B_C3 | $B_V3 /ix;
 
 our $R_CVV =qr/$C$V$H$V|$C a,?i,?| $C e,?i.?| $C o,?i,? | $C a,?u,? /ix;
 our $R_CVVR =qr/ $R_CVV $R_HYPH /ix;
@@ -186,10 +186,13 @@ our $CM_YHYBU =qr/ $CM_YHY (?:(?! $CM_BAD)bu)? (?! $VHY) /ix;
 our $CM_SIMPLE =qr/  $WS* (?: $CM_0+ | $CM_YBU | $CM_CYBOI | $CM_YHYBU ) $WS*  /ix;
 our $CMAVO =qr/  $WS* (?: $CM_0 | $CM_Y | $CM_CY | $CM_YHY ) $WS*  /ix;
 
+our $RAW_NUM = qr/  [+-]? \d [\d_]* /x;
+
 sub make_cmavo_pat {
   my @li = map (cmavo_escape($_)   , @_ ) ;
   my $pat= join(q{|},@li) ;
-  my $ret= qr/(?! $CM_BAD) (?: $pat ) (?! $VHY) /ix;
+  #say $pat;
+  my $ret= qr/ (?! $CM_BAD) (?: $pat ) (?! $VHY) /ix;
   #print $ret, "\n\n";
   # in trying to debug this thing I noticed that printing out
   # the pattern this thing creates is just plain huge and ugly
@@ -351,11 +354,11 @@ our %SM_LIST= (
  ) ;
 
 for my $skey (keys %SM_LIST) {
-  $SM{$skey} = make_cmavo_pat($SM_LIST{$skey}); }
+  $SM{$skey} = make_cmavo_pat( @{ $SM_LIST{$skey} }); }
 
 
-$SM{BRIVLA}=$BRIVLA;
-$SM{CMENE}=$CMENE;
+$SM{BRIVLA}=$BRIVLA_;
+$SM{CMENE}=$CMENE_;
 $SM{CMAVO}=$CMAVO;
 $SM{ANYTHING}=$NOT_WS;
 
@@ -398,13 +401,13 @@ sub test_regex_foundation0 () {
   q{y'ybu} =~ $CM_YHYBU or die;
   q{eparele} =~ $CM_SIMPLE or die;
   q{eparele} =~ $CM_0 or die;
-  #q{la'o} =~ $SM_ZOI or die;
-  #q{la'} =~ $SM_ZOI and die;
+  q{la'o} =~ $CM_BAD and die;
+  q{la'o} =~ $SM{ZOI} or die;
+  q{la'} =~ $SM{ZOI} and die;
   q{la'orbangu} =~ $CM_BAD or die;
   q{la'orbangu} =~ $LUJVO or die;
-  #q{la'orbangu} =~ $SM_ZOI and die;
-  #q{la'orbangu} =~ $SM{ZOI} and die;
-  #q{la'oi} =~ $SM_ZOI and die;
+  q{la'orbangu} =~ $SM{ZOI} and die;
+  q{la'oi} =~ $SM{ZOI} and die;
   q{ge'uzdani} =~ $LUJVO and die;
   q{ge'urzdani} =~ $LUJVO or die;
   q{slinku'i} =~ $FUH3 and die;

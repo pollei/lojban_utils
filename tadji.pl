@@ -3,10 +3,11 @@ use 5.010;
 use strict;
 use utf8;
 use warnings;
-our $VERSION = 0.000_001;
+our $VERSION = 0.000_002;
 
 #use Lojban::Valsi ':ALL';
 use Lojban::Saprvalsep ':ALL';
+use Lojban::Gerna ':ALL';
 
 # By Stephen Pollei
 # Copyright (C) 2011, "Stephen Pollei"<stephen.pollei@gmail.com>
@@ -30,7 +31,9 @@ use Lojban::Saprvalsep ':ALL';
 # of course in order to know a bit about the grammar I might just add a parser
 # directly to this
 
+# some simple tests that later can be commented out once things get stable
 Lojban::Valsi::test_regex_foundation0(); 
+Lojban::Gerna::test_mini_mu(); 
 
 # TODO FIXME have comments that can effect processing and split files apart
 # q{#%%}
@@ -46,6 +49,7 @@ Lojban::Valsi::test_regex_foundation0();
 #%% break-apart
 #%%#
 
+my $gram=new_token_base();
 my $line;
 my $in_str=q{};
 my $ret;
@@ -58,7 +62,8 @@ while ($line = <>) {
     next if ($line =~ m/ \# \% \% \# /x ); 
     #say 'cheese';
     $ret=saprvalsep($in_str);
-    say join(q{|},@{$ret});
+    #say join(q{|},@{$ret});
+    say vlalaha($ret);
     $in_str=q{};
   }
   else {
@@ -67,7 +72,7 @@ while ($line = <>) {
   }
 }
 $ret=saprvalsep($in_str);
-say join(q{|},@{$ret});
+say vlalaha($ret);
 
 1;
 

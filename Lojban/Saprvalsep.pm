@@ -6,10 +6,10 @@ use utf8;
 use warnings;
 
 use Exporter 'import';
-our @EXPORT_OK = qw(saprvalsep);
+our @EXPORT_OK = qw(saprvalsep vlalaha);
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK] );
 
-our $VERSION = 0.000_001;
+our $VERSION = 0.000_002;
 
 use Lojban::Valsi ':ALL';
 
@@ -18,6 +18,23 @@ use Lojban::Valsi ':ALL';
 # GPLv3 or later http://www.gnu.org/licenses/gpl.html
 
 # a "simple" word splitter sampu valsi sepli
+#handles the gaps between words both splits and rejoins
+
+#FIXME TODO add smarter join later
+sub vlalaha {
+  #my @parts = @_ ;
+  #my (@parts,$flag) = (@_) ;
+  my @parts =@{ $_[0] };
+  my %flag;
+  if ($#_ >0 ) { %flag = %{ $_[1]} ; }
+     else { %flag =(); }
+  #say 'vlalaha flag', $flag{liquid};
+  if ($#parts<0) {return q{.}; }
+  #say 'vlalaha<', $parts[0],'>';
+  if ($parts[0] !~ / [\s.] /x) { unshift @parts, q{.}; }
+  if ($parts[-1] !~ / [\s\.] /x) { push @parts, q{ .}; }
+  return join(q{.},@parts);
+}
 
 my $makfa_cmavo=Lojban::Valsi::make_cmavo_pat( qw(lo'u le'u zoi zo'oi la'o la'oi));
 
@@ -31,8 +48,7 @@ q{la} =~ $makfa_cmavo and die;
 sub cmavo_split {
   my ($words) =@_;
   my @ret;
-  my $max=length($words);
-  while (length($words) and $max>0) {
+  while (length($words)) {
     if ( $words =~
        / ^ (  (?: (?! $makfa_cmavo) $CMAVO)* ) ( $makfa_cmavo ) ( $X* ) $ /x) {
       #say 'cheese wiz <',$words,'><',$1,'><',$2,'><',$3,'>',$4;
@@ -41,7 +57,10 @@ sub cmavo_split {
       if ($3 eq q{}) {return \@ret};
       $words=$3;
     }
-    $max--;
+    else {
+      push @ret,$words;
+      return \@ret;
+    }
   }
   push @ret,$words;
   return \@ret;
@@ -54,6 +73,7 @@ sub split_words {
     return $words;
   }
   while (length($words) ) {
+    #say 'split_words<',$words,'>';
     if ($words =~ / ^ ($CMAVO+) ( $X+ |) $ /x) {
       push @ret, @{ cmavo_split($1) }; $words=$2;
       return \@ret if ($words eq q{});
@@ -70,12 +90,18 @@ sub saprvalsep {
   my ($str) = @_;
   my @ret;
   while (length($str)) {
-    if ($str =~ / ^ ([\s.]+)([^\s]+.*|) $ /sx) {
+    #say 'sapr<',$str,'>';
+    if ($str =~ / ^ ([\s.[:punct:]]+)([^\s]+.*|) $ /sx) {
       push @ret, $1; $str=$2;
+      return \@ret if ($str eq q{});
+    }
+    if ($str =~ / ^ ($RAW_NUM+)( (?!  $RAW_NUM) .*|) $ /sx) {
+      push @ret, $1; $str=$2; next;
     }
     if ($str =~ / ^ ($WEAK_SYLL+)( (?! $WEAK_SYLL) .* |) $ /sx) {
       push @ret, @{ split_words($1) }; $str=$2; next;
     }
+    #TODO FIXME maybe I should make the fixup optional or move it elsewhere
     if ($str =~ / ^ ($GOB+)( (?! $GOB) .* |) $ /sx) {
       push @ret, fix_word($1); $str=$2; next;
     }
