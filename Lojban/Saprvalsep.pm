@@ -9,7 +9,7 @@ use Exporter 'import';
 our @EXPORT_OK = qw(saprvalsep vlalaha);
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK] );
 
-our $VERSION = 0.000_002;
+our $VERSION = 0.000_003;
 
 use Lojban::Valsi ':ALL';
 
@@ -70,7 +70,7 @@ sub split_words {
   my @ret;
   my ($words) =@_;
   if ($words =~ /^ $CMENE $ /x) {
-    return $words;
+    push @ret,$words; return \@ret;
   }
   while (length($words) ) {
     #say 'split_words<',$words,'>';

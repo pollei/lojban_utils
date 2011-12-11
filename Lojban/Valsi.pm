@@ -13,7 +13,7 @@ our @EXPORT_OK = qw(
     $C $V $L $H $Y $X $WS $RAW_NUM classify_valsi fix_word);
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK] );
 
-our $VERSION = 0.000_005;
+our $VERSION = 0.000_006;
 
 # By Stephen Pollei
 # Copyright (C) 2011, "Stephen Pollei"<stephen.pollei@gmail.com>
@@ -201,16 +201,20 @@ sub make_cmavo_pat {
 }
 
 
+# http://www.lojban.org/publications/wordlists/cmavo.txt
+# http://jbovlaste.lojban.org/dict/listing.html?type=experimental%20cmavo
+# http://www.lojban.org/tiki/Experimental+cmavo
 # pattern match on selma'o 
+# should have all of the normal cmavo and most of the experimental
 our %SM;
 our %SM_LIST= ( 
    A =>  [qw( a e ji o u )] ,
-   BAhE =>  [qw( ba'e za'e )] ,
+   BAhE =>  [qw( ba'e za'e ba'ei )] ,
    BAI =>  [qw( ba'i bai bau be'i ca'i cau ci'e ci'o ci'u cu'u de'i di'o
       do'e du'i du'o fa'e fau fi'e ga'a gau ja'e ja'i ji'e ji'o ji'u ka'a
       ka'i kai ki'i ki'u koi ku'u la'u le'a li'e ma'e ma'i mau me'a me'e
       mu'i mu'u ni'i pa'a pa'u pi'o po'i pu'a pu'e ra'a ra'i rai ri'a
-      ri'i sau si'u ta'i tai ti'i ti'u tu'i va'o va'u zau zu'e )] ,
+      ri'i sau si'u ta'i tai ti'i ti'u tu'i va'o va'u zau zu'e va'ai )] ,
    BE =>  [qw( be )] ,
    BEhO =>  [qw( be'o )] ,
    BEI =>  [qw( bei )] ,
@@ -221,19 +225,19 @@ our %SM_LIST= (
    BU =>  [qw( bu )] ,
    BY =>  [qw( by cy dy fy ga'e ge'o gy je'o jo'o jy ky lo'a ly
       my na'a ny py ru'o ry se'e sy to'a ty vy xy y'y zy )] ,
-   CAhA =>  [qw( ca'a ka'e nu'o pu'i )] ,
-   CAI =>  [qw( cai cu'i pei ru'e sai )] ,
+   CAhA =>  [qw( ca'a ka'e nu'o pu'i bi'ai ca'ai ka'ei nau'a nu'oi)] ,
+   CAI =>  [qw( cai cu'i pei ru'e sai dau'i mau'i me'ai )] ,
    CEhE =>  [qw( ce'e )] ,
    CEI =>  [qw( cei )] ,
    CO =>  [qw( co )] ,
    COI =>  [qw( be'e co'o coi fe'o fi'i je'e ju'i
-      ke'o ki'e mi'e mu'o nu'e pe'u re'i ta'a vi'o ki'ai sa'ei)] ,
+      ke'o ki'e mi'e mu'o nu'e pe'u re'i ta'a vi'o ki'ai sa'ei di'ai )] ,
    CU =>  [qw( cu )] ,
    CUhE =>  [qw( cu'e nau )] ,
    DAhO =>  [qw( da'o )] ,
    DOhU =>  [qw( do'u )] ,
    DOI =>  [qw( doi da'oi)] ,
-   FA =>  [qw( fa fai fe fi fi'a fo fu )] ,
+   FA =>  [qw( fa fai fe fi fi'a fo fu foi'a foi'e foi'e foi'o foi'u )] ,
    FAhA =>  [qw( be'a bu'u ca'u du'a fa'a ga'u ne'a ne'i ne'u ni'a
       pa'o re'o ri'u ru'u te'e ti'a to'o vu'a ze'o zo'a zo'i zu'a )] ,
    FAhO =>  [qw( fa'o )] ,
@@ -249,29 +253,33 @@ our %SM_LIST= (
    GEhU =>  [qw( ge'u )] ,
    GI =>  [qw( gi )] ,
    GIhA =>  [qw( gi'a gi'e gi'i gi'o gi'u )] ,
-   GOhA =>  [qw( bu'a bu'e bu'i co'e du go'a go'e go'i go'o go'u mo nei no'a )] ,
-   GOI =>  [qw( goi ne no'u pe po po'e po'u )] ,
+   GOhA =>  [qw( bu'a bu'e bu'i co'e du go'a go'e go'i
+                 go'o go'u mo nei no'a nei'i no'au )] ,
+   GOI =>  [qw( goi ne no'u pe po po'e po'u goi'a xe'e )] ,
    GUhA =>  [qw( gu'a gu'e gu'i gu'o gu'u )] ,
-   I =>  [qw( i )] ,
+   I =>  [qw( i oi'a )] ,
    JA =>  [qw( ja je je'i jo ju )] ,
    JAI =>  [qw( jai )] ,
    JOhI =>  [qw( jo'i )] ,
    JOI =>  [qw( ce ce'o fa'u jo'e jo'u joi ju'e ku'a pi'u )] ,
    KE =>  [qw( ke )] ,
    KEhE =>  [qw( ke'e )] ,
-   KEI =>  [qw( kei )] ,
+   KEI =>  [qw( kei boi'a boi'e boi'i boi'o boi'u )] ,
    KI =>  [qw( ki )] ,
    KOhA =>  [qw( ce'u da da'e da'u de de'e de'u dei di di'e di'u do
       do'i do'o fo'a fo'e fo'i fo'o fo'u ke'a ko ko'a ko'e ko'i ko'o
       ko'u ma ma'a mi mi'a mi'o ra ri ru ta ti tu vo'a
-      vo'e vo'i vo'o vo'u zi'o zo'e zu'i xai)] ,
-   KU =>  [qw( ku )] ,
+      vo'e vo'i vo'o vo'u zi'o zo'e zu'i xai zi'oi ru'ai
+      foi'a foi'e foi'i foi'o foi'u koi'a koi'e koi'i koi'o koi'u )] ,
+   KU =>  [qw( ku kei'a kei'e kei'i kei'o kei'u
+               fei'a fei'e fei'i fei'o fei'u)] ,
    KUhE =>  [qw( ku'e )] ,
    KUhO =>  [qw( ku'o )] ,
-   LA =>  [qw( la la'i lai )] ,
-   LAhE =>  [qw( la'e lu'a lu'e lu'i lu'o tu'a vu'i )] ,
+   LA =>  [qw( la la'i lai da'ai ko'ai la'ei )] ,
+   LAhE =>  [qw( la'e lu'a lu'e lu'i lu'o tu'a vu'i xa'e zo'ei )] ,
    LAU =>  [qw( ce'a lau tau zai )] ,
-   LE =>  [qw( le le'e le'i lei lo lo'e lo'i loi xo'e)] ,
+   LE =>  [qw( le le'e le'i lei lo lo'e lo'i loi
+               xo'e lau'a lau'e lau'i lau'o le'ei lei'e lo'ei loi'e )] ,
    LEhU =>  [qw( le'u )] ,
    LI =>  [qw( li me'o )] ,
    LIhU =>  [qw( li'u )] ,
@@ -286,24 +294,25 @@ our %SM_LIST= (
    MOhE =>  [qw( mo'e )] ,
    MOhI =>  [qw( mo'i )] ,
    MOI =>  [qw( cu'o mei moi si'e va'e )] ,
-   NA =>  [qw( ja'a na )] ,
+   NA =>  [qw( ja'a na da'au jai'a nai'a )] ,
    NAhE =>  [qw( je'a na'e no'e to'e )] ,
    NAhU =>  [qw( na'u )] ,
    NAI =>  [qw( nai ja'ai)] ,
    NIhE =>  [qw( ni'e )] ,
    NIhO =>  [qw( ni'o no'i )] ,
-   NOI =>  [qw( noi poi voi )] ,
-   NU =>  [qw( du'u jei ka li'i mu'e ni nu pu'u si'o su'u za'i zu'o )] ,
+   NOI =>  [qw( noi poi voi noi'a poi'a voi'a )] ,
+   NU =>  [qw( du'u jei ka li'i mu'e ni nu
+               pu'u si'o su'u za'i zu'o dau'au du'au kai'a poi'i)] ,
    NUhA =>  [qw( nu'a )] ,
    NUhI =>  [qw( nu'i )] ,
    NUhU =>  [qw( nu'u )] ,
    PA =>  [qw( bi ce'i ci ci'i da'a dau du'e fei fi'u gai jau ji'i
        ka'o ki'o ma'u me'i mo'a mu ni'u no no'o pa pai pi pi'e ra'e
        rau re rei ro so so'a so'e so'i so'o so'u su'e su'o
-       te'o tu'o vai vo xa xo za'u ze xei)] ,
+       te'o tu'o vai vo xa xo za'u ze xei zei'a )] ,
    PEhE =>  [qw( pe'e )] ,
    PEhO =>  [qw( pe'o )] ,
-   PU =>  [qw( ba ca pu )] ,
+   PU =>  [qw( ba ca pu xoi'a xoi'e )] ,
    RAhO =>  [qw( ra'o )] ,
    ROI =>  [qw( re'u roi ba'oi mu'ei)] ,
    SA =>  [qw( sa )] ,
@@ -326,10 +335,10 @@ our %SM_LIST= (
       ke'u ki'a ku'i la'a le'o li'a li'o mi'u mu'a na'i o'a o'e o'i
       o'o o'u oi pa'e pau pe'a pe'i po'o ra'u re'e ri'e ro'a ro'e ro'i
       ro'o ro'u ru'a sa'a sa'e sa'u se'a se'i se'o si'a su'a ta'o ta'u
-      ti'e to'u u'a u'e u'i u'o u'u ua ue ui uo
-      uu va'i vu'e xu za'a zo'o zu'u )] ,
+      ti'e to'u u'a u'e u'i u'o u'u ua ue ui uo uu va'i vu'e xu za'a
+      zo'o zu'u a'a'a a'o'e bua'a'a fu'au li'oi sei'u xo'o )] ,
    VA =>  [qw( va vi vu )] ,
-   VAU =>  [qw( vau )] ,
+   VAU =>  [qw( vau vau'a vau'e vau'i vau'o vau'u)] ,
    VEhA =>  [qw( ve'a ve'e ve'i ve'u )] ,
    VEhO =>  [qw( ve'o )] ,
    VEI =>  [qw( vei )] ,
@@ -339,19 +348,20 @@ our %SM_LIST= (
       pi'a pi'i re'a ri'o sa'i sa'o si'i su'i te'a va'a vu'u )] ,
    XI =>  [qw( xi )] ,
    Y =>  [qw( y )] ,
-   ZAhO =>  [qw( ba'o ca'o co'a co'i co'u de'a di'a mo'u pu'o za'o )] ,
-   ZEhA =>  [qw( ze'a ze'e ze'i ze'u )] ,
+   ZAhO =>  [qw( ba'o ca'o co'a co'i co'u de'a di'a mo'u pu'o za'o xa'o )] ,
+   ZEhA =>  [qw( ze'a ze'e ze'i ze'u ze'ai)] ,
    ZEI =>  [qw( zei )] ,
-   ZI =>  [qw( za zi zu )] ,
+   ZI =>  [qw( za zi zu za'ai )] ,
    ZIhE =>  [qw( zi'e )] ,
-   ZO =>  [qw( zo )] ,
-   ZOhU =>  [qw( zo'u )] ,
+   ZO =>  [qw( zo ma'oi )] ,
+   ZOhU =>  [qw( zo'u kau'a kau'e kau'i kau'o kau'u
+                 fau'a fau'e fau'i fau'o fau'u)] ,
    ZOI =>  [qw( la'o zoi )] ,
-   ZOhOI => [qw(la'oi zo'oi)],
+   ZOhOI => [qw(la'oi zo'oi ra'oi )],
    MEhOI => [q(me'oi)], FUhEI => [q(fu'ei)], FUhOI => [q(fu'oi)],
-   LOhAI => [q(lo'ai)], SAhAI => [q(sa'ai)], LEhAI => [q(le'ai)],
-   ZEhEI => [q(ze'ei)]
+   LOhAI => [q(lo'ai)], SAhAI => [q(sa'ai)], LEhAI => [q(le'ai)]
  ) ;
+# me'ei me'au  -- maybe add these as well
 
 for my $skey (keys %SM_LIST) {
   $SM{$skey} = make_cmavo_pat( @{ $SM_LIST{$skey} }); }
