@@ -123,6 +123,44 @@ class UtilBase:
     else:
       return self.hard_now()
 
+  #def find_earliest_expired_time(self, model=None, itera=None):
+  #  'this should be overriden later'
+  #  return '     '
+
+  #def find_last_expired_time(self, model=None, itera=None):
+  #  'this should be overriden later'
+  #  return '     '
+
+  def format_time(self,tim):
+    'format time'
+    now = self.soft_now()
+    ltim = time.localtime(tim)
+    if tim < now :
+      return ' Now '
+    # I could put something in for 365*24*60*60 .
+    # however for something to be in there for so long that the year matters,
+    # means some has been using this program and answering questions
+    # at 100% accuracy for a very long time.
+    # I'm not that optimistic to think any human will be so happy
+    #   with my program for so long a time
+    elif tim > now + 3628800:
+      return time.strftime("%Y/%m/%d", ltim)
+      # 42 days or more
+    elif tim > now + 1123200:
+      return time.strftime("%a %m/%d", ltim)
+      # 13 days or more
+    elif tim > now + 129600:
+      return time.strftime("%a %m/%d %H %p", ltim)
+      # 36 hours or more
+    elif tim > now + 79200:
+      return time.strftime("%a %H:%M %p", ltim)
+      # 22 hours or more
+    else:
+      return time.strftime("%H:%M:%S %p", ltim)
+    # when the time is getting close you might want to start checking to see if
+    # the first time is isolated and so you should give a slightly later time
+    # but this should be good enough to give rough indication
+
   def suggested_time(self, model=None, itera=None):
     'docstring'
     if self.stub:
@@ -133,27 +171,19 @@ class UtilBase:
       return '     '
     if self.total(model, itera) == 0:
       return '     '
-    now = self.soft_now()
-    lteet = time.localtime(eet)
-    if eet < now :
-      return ' Now '
-    # I could put something in for 365*24*60*60 .
-    # however for something to be in there for so long that the year matters,
-    # means some has been using this program and answering questions
-    # at 100% accuracy for a very long time.
-    # I'm not that optimistic to think any human will be so happy
-    #   with my program for so long a time
-    elif eet > now + 129600:
-      return time.strftime("%a %m/%d %H %p", lteet)
-      # 36 hours or more
-    elif eet > now + 79200:
-      return time.strftime("%a %H:%M %p", lteet)
-      # 22 hours or more
-    else:
-      return time.strftime("%H:%M:%S %p", lteet)
-    # when the time is getting close you might want to start checking to see if
-    # the first time is isolated and so you should give a slightly later time
-    # but this should be good enough to give rough indication
+    return self.format_time(eet)
+
+  def suggested_last_time(self, model=None, itera=None):
+    'docstring'
+    if self.stub:
+      return '     '
+    try:
+      ltet = self.find_last_expired_time(model, itera)
+    except:
+      return '     '
+    if self.total(model, itera) == 0:
+      return '     '
+    return self.format_time(ltet)
 
   def total(self, model=None, itera=None): return '     '
   def todo(self, model=None, itera=None): return '     '
@@ -189,6 +219,12 @@ class SetBase(UtilBase):
     if not os.path.exists(SetBase.pjs_dir_name):
       os.mkdir(SetBase.pjs_dir_name)
 
+  def create_set(self):
+    'should be overridden'
+
+  def read_cards(self):
+    'should be overridden'
+
   def change_index(self):
     'docstring'
     ex_sz = len(self.expired_queue)
@@ -210,9 +246,9 @@ class SetBase(UtilBase):
     if ex_sz > 3 and self.index and len(self.index) and (
         self.index[0:-1] == self.expired_queue[0][0:-1]) :
       #print 'skipped ', self.index[0:-1]
-      s = self.expired_queue[0]
+      tmp = self.expired_queue[0]
       self.expired_queue.pop(0)
-      self.expired_queue.append(s)
+      self.expired_queue.append(tmp)
     recent_wrong = (wr_sz and
        self.pjs.set[self.wrong_queue[0]]['lbad'] <
                (self.soft_now()-25-min(25,ex_sz/10)) )
@@ -236,6 +272,19 @@ class SetBase(UtilBase):
       if eet > self.pjs.set[item]['expire']:
         eet = self.pjs.set[item]['expire']
     return eet
+
+  def find_last_expired_time(self, model=None, itera=None):
+    'docstring'
+    if self.stub:
+      return self.soft_now()-99
+    kitems = self.pjs.set.keys()
+    #print 'kitems ', kitems[0]
+    ltet = self.pjs.set[kitems[0]]['expire']
+    for item in kitems:
+      if ltet < self.pjs.set[item]['expire']:
+        ltet = self.pjs.set[item]['expire']
+    return ltet
+
 
   def find_expired_cnt(self):
     'docstring'
@@ -313,16 +362,21 @@ class SetBase(UtilBase):
     self.dirty = True
     now = self.hard_now()
     if self.pjs.set[self.index]['lbad'] > self.pjs.set[self.index]['lgood']:
-      self.pjs.set[self.index]['expire'] = now+min((25+self.todo()), 240)
+      dt_nb = now - self.pjs.set[self.index]['lbad']
+      dt_max = max(min(25,dt_nb+5), self.todo() )
+      self.pjs.set[self.index]['expire'] = now+min(dt_max, 251)
     else:
       dt_eg = (self.pjs.set[self.index]['expire'] -
               self.pjs.set[self.index]['lgood'] )
       #dt_min = max(dt_eg,min(250+self.total(),2500))
       #dt_min = max(dt_eg, 90+2*max(90,self.expire_h16()) )
       dt_min = max(dt_eg, 4+min(240, self.expire_h16()) )
+      dt_base = max(dt_eg, self.expire_h16() )
       dt_ne = now - self.pjs.set[self.index]['expire']
-      dt = min(12.2*dt_min, max(4.5*dt_min, 9*dt_ne),
-               dt_eg+86400+45*self.total())
+      dt_max_day= min(7.4*dt_base, max(4.5*dt_eg, 6*dt_ne,1.3*self.todo()), 79073)
+      dt = max(2.1*dt_eg,dt_max_day)
+      #dt = min(12.2*dt_min, max(4.5*dt_min, 9*dt_ne),
+      #         dt_eg+86400+45*self.total())
       #dt = min(12.2*dt_min, max(4.5*dt_min,9*dt_ne), dt_eg+86400)
       # experiment with having the one day cap be bigger
       # and vary based on work load
@@ -333,6 +387,7 @@ class SetBase(UtilBase):
     self.todo_cnt = self.todo_cnt-1
 # math.sqrt(math.e) ~=~ 1.6487 # golden ratio ~=~ 1.6180
 # math.pow(math.e,1.5) ~=~ 4.482 thus 4.5
+# math.pow(math.e,2) ~=~ 7.389 thus 7.4
 # math.pow(math.e,2.5) ~=~ 12.182 thus 12.2
 
   def skip(self):
@@ -384,7 +439,7 @@ class SetBase(UtilBase):
   def done(self, model=None, itera=None):
     'docstring'
     return self.total_cnt - len(self.wrong_queue) - len(self.expired_queue)
-    return self.done_cnt
+    #return self.done_cnt
 
   # TODO FIXME try finding and loading a pickle
   # TODO FIXME doesn't use fsync or write to new file and then rename FIXME
@@ -667,8 +722,8 @@ class LojbanBase(SetBase):
     self.cards = LojbanBase.shared_cards
     #print LojbanBase.selmaho
     return
-    lf = self.kar( "lujvo.txt")
-    lf.close()
+    #lf = self.kar( "lujvo.txt")
+    #lf.close()
     #FIXME todo read the lujvo list
     # so you can get a nice list of words for the rafsi section FIXME
 
@@ -743,7 +798,10 @@ class LojbanBase(SetBase):
     print 'sound ' , ecmd , '\n', mcmd
     
     return strg
-    return None
+    #return None
+
+  def gen_word_list(self):
+    'generate word list -- needs to be overridden'
 
 # create set has gotten too ugly to live
 # combines creation from scratch with
@@ -829,11 +887,11 @@ class LojbanByF(LojbanBase):
         bl = urllib.urlopen(
        'http://digitalkingdom.org/~rlpowell/hobbies/lojban/flashcards/big_list')
         vff = self.kar( "valsi_f.txt",'w')
-        for l in bl:
-         vff.write(l.split()[0] + '\n') 
+        for lin in bl:
+          vff.write(lin.split()[0] + '\n') 
         vff.close()
         vff = self.kar( "valsi_f.txt")
-      LojbanByF.byf_lists['valsi'] = [ l.strip('.\n') for l in vff ]
+      LojbanByF.byf_lists['valsi'] = [ lin.strip('.\n') for lin in vff ]
       vff.close()
 
   def init_byf_lists(self):
@@ -902,7 +960,7 @@ class LojbanByF(LojbanBase):
   def find_expired(self, force=False):
     #print 'finding expired for ', self.name
     now = self.soft_now()
-    if now > (self.last_find_expired + 1500) :
+    if now > (self.last_find_expired + 787) :
       force = True
     if len(self.expired_queue) or len(self.wrong_queue) :
       if force:
@@ -925,7 +983,7 @@ class LojbanByF(LojbanBase):
     #print 'type name:', self.type_name
     #print 'word size list',len(LojbanByF.byf_lists[self.type_name])
     if len(LojbanByF.byf_lists[self.type_name]) == 0 :
-       self.gen_word_list()
+      self.gen_word_list()
     for word in LojbanByF.byf_lists[self.type_name][:self.total_cnt/2]:
       #print 'evaluating:', word
       if (now >  self.pjs.set[word+'0']['expire'] +115200) :
@@ -953,7 +1011,7 @@ class LojbanByF(LojbanBase):
     hard_cnt = fresh_cnt+stale_cnt
     grow_sz = min(37,(110-hard_cnt)/2,(work_max-eq_sz-hard_cnt)/2)
     if self.end_time-now < 300+3*hard_cnt:
-        grow_sz = grow_sz-14
+      grow_sz = grow_sz-14
     #print 'eq_sz:', eq_sz, ' grow_sz: ', grow_sz, ' stale_cnt:', stale_cnt
     #print ' fresh_cnt: ', fresh_cnt, ' work_max: ', work_max
     #print now
@@ -1012,6 +1070,7 @@ class RowTotal(UtilBase):
     self.done_cnt = 0
     self.eh16 = 0
     self.eet = 0
+    self.last_et = 0
 
   def scan(self, model, itera):
     'scan'
@@ -1022,7 +1081,8 @@ class RowTotal(UtilBase):
       self.todo_cnt = 0
       self.done_cnt = 0
       self.eh16 = 0
-      self.eet = now + 9899899
+      self.eet = now + 9.9e9
+      self.last_et = - 9.9e9
 
       # loop over each child and add to total sum
       # except for eet find the earliest
@@ -1038,29 +1098,32 @@ class RowTotal(UtilBase):
           ceet = obj.find_earliest_expired_time(model, itera)
           if ceet < self.eet:
             self.eet = ceet
+          cltet = obj.find_last_expired_time(model, itera)
+          if cltet > self.last_et:
+            self.last_et = cltet
         itera = model.iter_next(itera)
       
 
-  def total(self, model, itera):
+  def total(self, model=None, itera=None):
     'total'
     #return '     '
     self.scan(model, itera)
     return self.total_cnt
     # FIXME TODO this should actualy sum up the children
 
-  def todo(self, model, itera):
+  def todo(self, model=None, itera=None):
     'todo'
     self.scan(model, itera)
     #return '     '
     return self.todo_cnt
 
-  def done(self, model, itera):
+  def done(self, model=None, itera=None):
     'done'
     self.scan(model, itera)
     #return '     '
     return self.done_cnt
 
-  def expire_h16(self, model, itera):
+  def expire_h16(self, model=None, itera=None):
     '16 hours'
     self.scan(model, itera)
     #return '     '
@@ -1068,11 +1131,17 @@ class RowTotal(UtilBase):
 
   #def suggested_time(self,iter):
   #  return '  '
-  def find_earliest_expired_time(self, model, itera):
+  def find_earliest_expired_time(self, model=None, itera=None):
     'eet'
     self.scan(model, itera)
     #return 1249868564
     return self.eet
+
+  def find_last_expired_time(self, model=None, itera=None):
+    'last_et'
+    self.scan(model, itera)
+    #return 1249868564
+    return self.last_et
 
 class FlashCardWind:
   'flash-card window'
@@ -1340,6 +1409,10 @@ class SetChooser:
     'when'
     cell_renderer.set_property('text',
       str(model.get_value(itera, 0).suggested_time(model, itera)))
+  def cdf_last_time(self, treeviewcolumn, cell_renderer, model, itera):
+    'last time'
+    cell_renderer.set_property('text',
+      str(model.get_value(itera, 0).suggested_last_time(model, itera)))
 
   def __init__(self):
     window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -1479,6 +1552,12 @@ class SetChooser:
     cell = gtk.CellRendererText()
     coln.pack_start(cell, True)
     coln.set_cell_data_func(cell, self.cdf_when)
+
+    coln = gtk.TreeViewColumn('  Last Time          ')
+    self.treeview.append_column(coln)
+    cell = gtk.CellRendererText()
+    coln.pack_start(cell, True)
+    coln.set_cell_data_func(cell, self.cdf_last_time)
 
     self.treeview.set_search_column(0)
     self.treeview.show_all()
