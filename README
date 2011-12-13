@@ -1,12 +1,22 @@
-A Bunch of utilities related to lojban written in perl5
+utilities and libraries related to lojban
+   written in perl5 and python2
 
-lihertadji.pl -- A preprocessor that is likely going to be obsoleted by tadji soon
+lihertadji.pl -- A preprocessor
+  likely going to be obsoleted by tadji soon
 tadji.pl -- process and transforms a file containing lojban
 
 Lojban/Saprvalsep.pm -- A "simple" word separtator
 Lojban/Valsi.pm -- mostly a bunch of regexps to handle words
+Lojban/Gerna.pm -- context free grammar with Earley parser
 
-Likely more will be arriving after I clean them up with perlcritic
-I also have a flashcard program written in python that might show up
+flashcard.py -- attempts to be flash card program
+  has some lojban specific quirks
+  uses a home-brew spaced repetition heuristic
+    similar to Pimsleur and Leitner but tweaked
+    acceptable approximate solution but full of magic numbers that need tuning
+  early alpha that lacks polish and is a bit crufty in places
+  uses gtk+2
+
+Likely a few more will be arriving after I clean them up with perlcritic
 
 http://www.lojban.org/
