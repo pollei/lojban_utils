@@ -72,6 +72,8 @@ our $BAD_CCC = make_list_pat( qw(ndj ndz ntc nts));
 our $BAD_VV = make_list_pat( qw(aa ae ao ea ee eo eu oa oe ou iy uy));
 our $BAD_DD = make_list_pat (
          qw(bb cc dd ff gg hh jj kk ll mm nn pp qq rr ss tt vv ww xx zz));
+our $VOICED = qr/[bdgjvz] ,? /ix;
+our $UNVOICED = qr/[cfkpstx] ,? /ix;
 our $BAD_XZ = qr/[ptkfcsx]\,?[bdgvjz]|[bdgvjz]\,?[ptkfcsx]|[cjsz]\,?[cjsz]/ix;
 our $BAD_CC = qr/$BAD_DD | $BAD_XZ | $BAD_CX /ix;
 our $BAD_HH = qr/[h']{2,}/ix;
@@ -89,7 +91,7 @@ our $BAD_TRI= qr/$C $BAD_TRI_TAIL | $BAD_CCC/ix;
 # bad_tri catches too much like the {g,r,b} in {bang,r,blgaria}
 our $STRONG_BAD = qr/$BAD_W|$BAD_VV|$BAD_CC|$BAD_HH|$BAD_CCC/ix;
 our $WEAK_BAD = qr/$BAD_W|$BAD_CC|$BAD_HH/ix;
-# http://hrwiki.org/wiki/Strong_Bad
+# http://hrwiki.org/wiki/Strong_Bad ;-)
 
 
 #our $CMENE = qr/$C [.]* $ /ix;
@@ -98,6 +100,7 @@ our $CMENE = qr/ ^ $WS* $CMENE_ $WS* $ /ix;
 our $L3_LAX =qr/(?: $L \'?){0,3}/ix;
 our $L3=qr/(?: $V $H? | $C (?= $V) ){0,3}/ix;
 our $V3=qr/(?: $V $H? ){0,3}/ix;
+#our $VY3=qr/(?: $VY $H? ){0,3}/ix;
 our $C3=qr/$VHH $C $VHH | $C $VHH $V? /ix;
 our $CYC = qr/$C $Y? $C/ix;
 our $PCC = qr/$C $C/ix;
@@ -105,12 +108,14 @@ our $ICC = make_list_pat ( qw ( bl br cf ck cl cm cn cp cr ct dj dr dz
              fl fr gl gr jb jd jg jm jv kl kr ml mr pl pr sf sk sl sm
              sn sp sr st tc tr ts vl vr xl xr zb zd zg zm zv));
 # "tc" | "ts" | "dj" | "dz" | /[cjzs][pkfxbgvmtdnlr]/ | /[pkfxbgvmtdn][lr]/
+# /[pbcsmfvkgx][lr]|[td]r|[cs][pftkmn]|[jz][bvdgm]|t[cs]|d[jz]/
 # for icc this also matches some illegal combos
 # should icc be looser to ignore some errors ??
-#our $CYC5 = qr/^ [.]* $L3 $CYC ${C}* $VY /ix;
-#our $CC5 = qr/^ [.]* $L3 $PCC ${C}* $V /ix;
-our $CC5 =  qr/^ [.]* (?: $C3 $PCC| $V3 $ICC) ${C}* $V   /ix;
-our $CYC5 = qr/^ [.]* (?: $C3 $CYC| $V3 $ICC) ${C}* $VY  /ix;
+our $CYC5 = qr/^ [.]* $L3 $CYC ${C}* $VY /ix;
+our $CC5 = qr/^ [.]* $L3 $PCC ${C}* $V /ix;
+#our $CC5 =  qr/^ [.]* (?: $C3 $PCC| $V3 $ICC) ${C}* $V   /ix;
+#our $CYC5 = qr/^ [.]* (?: $C3 $CYC| $V3 $ICC) ${C}* $VY  /ix;
+our $GISM_ = qr/ $C$V$C$C | $ICC$V$C /ix;
 our $GISMU_ = qr/ $C$V$C$C$V | $ICC$V$C$V /ix;
 our $GISMU = qr/ ^ [.]* $GISMU_ [.]* $ /ix;
 #our $GISMU_ = qr/ $C$V$ICC$V | $ICC$V$C$V /ix;
@@ -122,25 +127,34 @@ our $Y_HYPH =qr/ y  \,? (?= $C ) /ix;
 our $M_HYPH =qr/ [lmnr] \,? (?= $C ) /ix;
 
 our $B_C3 = qr/ $C3 $CYC $L* $V (?! $VHY) /ix;
-our $B_V3 = qr/ $VHH{1,3} $ICC $L* $V (?! $VHY) | $ICC $C* $VH+ $YC+ $L* $V (?! $VHY) /ix;
-our $BRIVLA_ = qr/ $B_C3 | $B_V3 /ix;
+our $B_V3 = qr/ $VHH{1,3} $PCC $L* $V (?! $VHY) | $ICC $C* $VH+ $YC+ $L* $V (?! $VHY) /ix;
+our $B_F = qr/ $C* $ICC $C* $VH{3,} (?! $VHY) /x;
+#our $B_V3 = qr/ $VHH{1,3} $PCC $L* $V (?! $VHY) | $ICC $C* $VH+ $YC+ $L* $V (?! $VHY) /ix;
+#our $B_F = qr/ $C* $PCC $C* $VH{3,} (?! $VHY) /x;
+our $BRIVLA_ = qr/ $B_C3 | $B_V3 | $B_F /ix;
 
 our $R_CVV =qr/$C$V$H$V|$C a,?i,?| $C e,?i.?| $C o,?i,? | $C a,?u,? /ix;
 our $R_CVVR =qr/ $R_CVV $R_HYPH /ix;
+our $R_CVC = qr/ $C$V$C /ix;
 our $RAFC =qr/$C$V$C$C|$ICC$V$C|$C$V$C /ix;
-our $RAF = qr/$RAFC$Y_HYPH?|$ICC$V|$R_CVV/ix;
+our $RAFCY =qr/$C$V$C$C$Y_HYPH|$ICC$V$C$Y_HYPH|$C$V$C /ix;
+our $RAF = qr/$RAFCY$Y_HYPH?|$ICC$V|$R_CVV/ix;
 # tosmabru FIXME AUDIT tosmabru regex might be wrong
 # #tosmabru if ($word =~ /^ [.]* $C $V ($L{4,}) [.]* $ /x ) { if (xu_brivla($1)) { return 0;} }
-our $TOSMABRU = qr/ $C $V $BRIVLA_ /ix;
+# http://www.lojban.org/tiki/tosmabru+test
+# http://www.lojban.org/publications/reference_grammar/chapter4.html#s11
+our $TOSMABRU = qr/ (?= $R_CVC+ $GISMU_ ) $C $V $BRIVLA_ /ix;
+#our $TOSMABRU = qr/ $C $V $BRIVLA_ /ix;
 our $LUJVO_ =qr/(?!$TOSMABRU)(?: $RAF | $R_CVVR) $RAF* (?: $RAF | $GISMU_) /ix;
 our $LUJVO = qr/ ^ [.]* $LUJVO_ [.]* $ /ix;
 #FIXME AUDIT is this lujvo regex really correct and sufficient? FIXME
 
-our $CCC =qr/ $C | $C$C | $C$ICC /ix;
+our $CCC =qr/ $C | $C$C | $C? $ICC+ /ix;
 our $SYLL =qr/ $M_HYPH? $CCC? $VHY+ $CCC? $M_HYPH? /ix;
 our $WEAK_SYLL =qr/ $M_HYPH? $C* $VHY+ $C* $M_HYPH? | $YM /ix;
+#our $SYLL_NOY =qr/ $M_HYPH? $CCC? $VH* $V $CCC? $M_HYPH? | $VHH+ $V /ix;
 our $SYLL_NOY =qr/ $M_HYPH? $CCC? $VH* $V $CCC? $M_HYPH? /ix;
-our $SYLL_BTAIL =qr/ $M_HYPH? $CCC $VH* $V (?! $VHY) /ix;
+our $SYLL_BTAIL =qr/ $M_HYPH? (?: $CCC | $VH+) $VH* $V (?! $VHY) /ix;
 our $GOB =qr/ $M_HYPH? $C* (?: $VHY | $BAD_W)+ $C* $M_HYPH? | $YM /ix;
 
 our $GOOD =qr/ ^ $WS* $SYLL+ $WS* $ /ix;
@@ -152,10 +166,11 @@ our $WEAK_GOOD =qr/ ^ $WS* $WEAK_SYLL+ $WS* $ /ix;
   #if ($word =~ / ^ [.]* (?: $C?$V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_) [.]* $ /ix)
   # slinku'i paslinku'i
   #if (('pa' . $word) =~ $LUJVO ) { return 0; }
-our $FUH3_NOCOMBO = qr/(?: $C?$V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_)/ix;
+our $FUH_NOCOMBO = qr/(?: $C?$V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_)/ix;
+#our $FUH_NOCOMBO = qr/$C (?: $V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_)/ix;
 our $SLI_RAF = qr/ [iu]\? $R_HYPH? | $C $C? $Y? /ix;
 our $SLINKUHI = qr/ $SLI_RAF $RAF* (?: $RAF | $GISMU_) /ix;
-our $BAD_FUH =qr/ $SLINKUHI | $FUH3_NOCOMBO /ix;
+our $BAD_FUH =qr/ $SLINKUHI | $FUH_NOCOMBO /ix;
 our $FUH3_ =qr/ (?! $BAD_FUH) $RAFC $L_HYPH $C (?: $C | $VH)* $V (?! $VHY ) /ix;
 our $FUH3  =qr/ ^ $WS* $FUH3_ $WS* $ /ix;
 #our $FUH4_ =qr/ (?: $C | $VH){3,} $VH (?! $VHY ) /ix;
@@ -372,6 +387,41 @@ $SM{CMENE}=$CMENE_;
 $SM{CMAVO}=$CMAVO;
 $SM{ANYTHING}=$NOT_WS;
 
+sub classify_valsi {
+  my ($word) =@_;
+  my $classed=q{};
+  my $btype=0;
+  if ($word eq q{}) {return 'x';}
+  if ($word =~ $WEAK_BAD || $word !~ $WEAK_GOOD) { return 'XXX'; }
+  if ($word =~ $CMENE ) { return 'N'; }
+  if ($word =~ $STRONG_BAD || $word !~ $GOOD) { return 'XXX'; }
+  if ($word =~ $BRIVLA) {
+    if ($word =~ $GISMU) { return 'BG'; }
+    if ($word =~ $LUJVO) { return 'BL'; }
+    if ($word =~ $FUH4) { return 'BF'; }
+  }
+  if ($word  =~ $CM_SIMPLE) {return 'c';}
+  return 'U';
+}
+
+sub vlalei {
+  my ($word) =@_;
+  my $classed=q{};
+  my $btype=0;
+  if ($word eq q{}) {return 'Empty';}
+  if ($word =~ $WEAK_BAD || $word !~ $WEAK_GOOD) { return 'Ugly'; }
+  if ($word =~ $CMENE ) { return 'cmene'; }
+  if ($word =~ $STRONG_BAD || $word !~ $GOOD) { return 'Bad'; }
+  if ($word =~ $BRIVLA) {
+    if ($word =~ $GISMU) { return 'gismu'; }
+    if ($word =~ $LUJVO) { return 'lujvo'; }
+    if ($word =~ $FUH4) { return 'fuhivla'; }
+  }
+  if ($word  =~ / ^ $CMAVO $ /) {return 'cmavo';}
+  if ($word  =~ /^ $CM_SIMPLE $ / ) {return 'Cmavo Compound';}
+  return 'Unknown';
+}
+
 #TODO these tests should be more comprehensive and be moved elsewhere
 #TODO so that they aren't run all the time and take up space here
 #TODO but they do seem to run quickly
@@ -387,6 +437,7 @@ sub test_regex_foundation0 () {
   'gis,mu' =~ $GISMU or die;
   'broda' =~ $GISMU or die;
   q{bralo'i} =~ $LUJVO or die;
+  q{soirsai} =~ $BRIVLA or die;
   q{soirsai} =~ $LUJVO or die;
   q{mamtypatfu} =~ $LUJVO or die;
   q{patyta'a} =~ $LUJVO or die;
@@ -396,9 +447,9 @@ sub test_regex_foundation0 () {
   q{bang,r,blgaria} =~ $FUH3 or die;
   q{bang,r,blgaria} =~ $WEAK_GOOD or die;
   q{bang,r,blgaria} =~ $WEAK_BAD and die;
-  q{bang,r,blgaria} =~ $GOOD and die;
+  #q{bang,r,blgaria} =~ $GOOD and die;
   q{bang,r,blgaria} =~ $STRONG_BAD and die;
-  q{bang,r,blgaria} =~ $FUH4 and die; # blg is illegal consonant cluster
+  #q{bang,r,blgaria} =~ $FUH4 and die; # blg is illegal consonant cluster
   q{blg} =~ $BAD_TRI or die;
   q{cidj,r,spageti} =~ $FUH3 or die;
   q{cidj,r,spageti} =~ $FUH4 or die;
@@ -418,29 +469,42 @@ sub test_regex_foundation0 () {
   q{la'orbangu} =~ $LUJVO or die;
   q{la'orbangu} =~ $SM{ZOI} and die;
   q{la'oi} =~ $SM{ZOI} and die;
-  q{ge'uzdani} =~ $LUJVO and die;
+  #q{ge'uzdani} =~ $LUJVO and die;
   q{ge'urzdani} =~ $LUJVO or die;
   q{slinku'i} =~ $FUH3 and die;
   #my $test_zoi1 = qq{$SM_ZOI};
   #say ref($SM_ZOI), q{ --  }, ref($test_zoi1), q{ -- };
-  return;
-}
-
-sub classify_valsi {
-  my ($word) =@_;
-  my $classed=q{};
-  my $btype=0;
-  if ($word eq q{}) {return 'x';}
-  if ($word =~ $WEAK_BAD || $word !~ $WEAK_GOOD) { return 'XXX'; }
-  if ($word =~ $CMENE ) { return 'N'; }
-  if ($word =~ $STRONG_BAD || $word !~ $GOOD) { return 'XXX'; }
-  if ($word =~ $BRIVLA) {
-    if ($word =~ $GISMU) { return 'BG'; }
-    if ($word =~ $LUJVO) { return 'BL'; }
-    if ($word =~ $FUH4) { return 'BF'; }
+  # http://www.lojban.org/tiki/Exhaustive+list+of+short+fu%27ivla+forms
+  my @flist = qw(iglu spa'i spraile
+    praia  spra'i  ostoi  astro  uiski 
+    ma'agni  saprka  brai'oi  tce'exo  stroia
+    astroi asrkoi astrgo iastro  uaisto 
+    saispai saispra  sarpaia  sarpasa  sasprai  sarprai sabrpai
+    satspra spaiaia spaiapa  spaipsa  spapaia spapapa  spaprka  spraiai
+    spraika jglandi
+    aspapsa  asrkaia eskrima  asrstai  asrkrai
+    asprkai asprkra aitsmla  aisrpai  uaispra uaispai
+    cidjrspageti djarspageti tricrxaceru ricrxaceru
+    saktrxaceru cirlrbri sincrkobra saskrkuarka
+    djinrnintegrale tarmrnintegrale
+    tci'ile
+    );
+  for my $fw (@flist) {
+    if ($fw !~ $FUH4) {say 'bad fuh ', $fw ,' ', vlalei($fw); }
+    say vlalei($fw), ' ', $fw;
+    }
+  my @flist2 = qw(alga iksoia odbenu aksroi iandau  saiaspa  
+    apsaiai  apsapai  apsaipa apsaspa
+     arpraia  apsrkai ainstai airpasa  airpaia tsmla'i  
+   tsmlaia  tsmlatu stsmla'u   );
+  for my $fw (@flist2) {
+    say vlalei($fw), ' ', $fw;
+    #say $fw;
+    #if ($fw !~ $FUH4) {say 'bad fuh ', $fw ,' ', vlalei($fw); }
+    #if ($fw !~ $CC5) {say 'bad cc5 ', $fw; }
+    #if ($fw =~ /^ $CMAVO /x) {say 'bad fuh cmavo  ', $fw, ' ',vlalei($fw); }
   }
-  if ($word  =~ $CM_SIMPLE) {return 'c';}
-  return 'U';
+  return;
 }
 
 #FIXME TODO STUB
@@ -450,6 +514,13 @@ sub fix_word {
 }
 #FIXME TODO STUB
 
+# join an array of rafsi into a lujvo
+sub rafyjongau {
+}
+
+#split a lujvo into an array of rafsi
+sub jvokatna {
+}
 
 1;
 
