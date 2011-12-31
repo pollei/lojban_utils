@@ -9,7 +9,7 @@ use Exporter 'import';
 our @EXPORT_OK = qw(saprvalsep vlalaha);
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK] );
 
-our $VERSION = 0.000_003;
+our $VERSION = 0.000_004;
 
 use Lojban::Valsi ':ALL';
 
@@ -69,46 +69,133 @@ sub cmavo_split {
 sub split_words {
   my @ret;
   my ($words) =@_;
-  if ($words =~ /^ $CMENE $ /x) {
-    push @ret,$words; return \@ret;
-  }
   while (length($words) ) {
     #say 'split_words<',$words,'>';
-    if ($words =~ / ^ ($CMAVO+) ( $X+ |) $ /x) {
-      push @ret, @{ cmavo_split($1) }; $words=$2;
-      return \@ret if ($words eq q{});
+    #start ripping apart words that have bad combo of letters
+    if ($words =~ / ^ ($X* (?= $BAD_CC) $C) ($C .* )  $ /x) {
+      #say 'split_words bad cc<',$words,'>',$1,'-',$2;
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
     }
-    if ($words =~ / ^ ($STRESS $RELAX) ( $X+ |) $ /x) {
-      push @ret, $1; $words=$2; next;
+    if ($words =~ / ^ ($X* (?= $BAD_CCC) $C $C ) ($C .* ) $ /x) {
+      #say 'split_words bad ccc<',$words,'>',$1,'-',$2;
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
     }
-    push @ret,$words; return \@ret;
+    if ($words =~ / ^ ($X* $C) ($H .* ) $ /x) {
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
+    }
+    if ($words =~ / ^ ($X* $H $C) ($X .* ) $ /x) {
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
+    }
+    #ok any words that survive this far don't have bad combo of letters
+    #they might not be proper syllables and might still have other issues
+
+    if ($words =~ / [wq] | $H $H | ^ $H | $H $C /ix ) {
+      $words=fix_word($words);
+    }
+    if ($words !~ / ^ $SYLL+ $ /sx) {
+      #say 'split_word fix_word<',$words,'>',fix_word($words);
+      $words=fix_word($words);
+    }
+
+    #if it's a name we do not need to split it further
+    if ($words =~ /^ $CMENE $ /x) {
+      #say 'found cmene<',$words,'>',fix_word($words);
+      push @ret,fix_word($words); return \@ret;
+    }
+
+    #split cmavo off the front try breaking off at consonant first
+    if ($words =~ / ^ ($CMAVO+) ( (?= $BRIVLAS) $C $X+ ) $ /x) {
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
+    }
+    if ($words =~ / ^ ($CMAVO+) ( (?= $BRIVLAS) $X+) $ /x) {
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
+    }
+    #if ($words =~ / ^ ($CMAVO+) ( (?! $CMAVO) $X+) $ /x) {
+    #  push @ret, @{ split_words($1) }; next;
+    #}
+
+    if ($words =~ / ^ $CMAVO+ $ /x) {
+      push @ret, @{ cmavo_split($words) }; return \@ret;
+    }
+
+    # break words apart based on stress
+    # try to be gentler at first
+    if ($words =~ / ^ ($STRESS $RELAX)
+                        ( $C+ $X+ | $V $H $X+ | $Y $X+ ) $ /x) {
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
+    }
+    #if that did not work, try ripping harder
+    if ($words =~ / ^ ($X* $STRESS $RELAX)
+                        ( $X* (?: $YC | $V $H) $X+ ) $ /x) {
+      $words=$2;
+      push @ret, @{ split_words($1) }; next;
+    }
+
+    if ($words =~ / ^ $BRIVLAS $ /x) {
+      push @ret,  fix_word($words) ; return \@ret;
+    }
+
+    #say 'FIXME unhandled split word: ' , $words;
+    push @ret,q{.} . fix_word($words) . q{.} ; return \@ret;
   }
   return \@ret;
 }
+
+my $ws =qr/(?! $RAW_NUM) [\s.[:punct:]] \s* /x;
+#match whitespace and punctuation but be careful to not eat raw numbers
+my $cluster_jam =qr/ (?: (?! $SYLL) $C)+ /ix;
 
 sub saprvalsep {
   my ($str) = @_;
   my @ret;
   while (length($str)) {
     #say 'sapr<',$str,'>';
-    if ($str =~ / ^ ([\s.[:punct:]]+)([^\s]+.*|) $ /sx) {
-      push @ret, $1; $str=$2;
-      return \@ret if ($str eq q{});
+    if ($str =~ / ^ ($ws+)([^\s]+.*|) $ /sx) {
+      $str=$2;
+      push @ret, fix_white($1); next;
     }
     if ($str =~ / ^ ($RAW_NUM+)( (?!  $RAW_NUM) .*|) $ /sx) {
-      push @ret, $1; $str=$2; next;
+      $str=$2;
+      push @ret, fix_num($1); next;
     }
-    if ($str =~ / ^ ($WEAK_SYLL+)( (?! $WEAK_SYLL) .* |) $ /sx) {
-      push @ret, @{ split_words($1) }; $str=$2; next;
+    # words should be made out of pronounceable syllabies
+    if ($str =~ / ^ ($SYLL+)( (?! $SYLL) .* |) $ /sx) {
+      $str=$2;
+      push @ret, @{ split_words($1) }; next;
     }
-    #TODO FIXME maybe I should make the fixup optional or move it elsewhere
+    # if no syllable is available likely there is a consonant cluster jam
+    #if ($str =~ / ^ ($cluster_jam)( $SYLL .* | $WS .* | ) $ /sx) {
+    if ($str =~ / ^ ($cluster_jam)( (?! $cluster_jam) .* | ) $ /sx) {
+      $str=$2;
+      push @ret, fix_word($1) ; next;
+    }
+    if ($str =~ / ^ ($CCC $CCC)( $C .* |) $ /sx) {
+      $str=$2;
+      push @ret, fix_word($1) ; next;
+    }
+    if ($str =~ / ^ ($C+)( $WS .* |) $ /sx) {
+      $str=$2;
+      push @ret, @{ split_words($1) }; next;
+    }
+    # handle words that include illegal letters like q and-or w
     if ($str =~ / ^ ($GOB+)( (?! $GOB) .* |) $ /sx) {
-      push @ret, fix_word($1); $str=$2; next;
+      $str=$2;
+      push @ret, @{ split_words($1) } ; next;
     }
+    # last ditch effort to do something
     if ($str =~ / ^ ([^\s.]+)(.*) $ /sx) {
-        push @ret, fix_word($1); $str=$2;}
+      $str=$2;
+      push @ret, @{ split_words($1) } ; }
     else {
-        push @ret,$str; return \@ret; }
+      push @ret,$str; return \@ret; }
+      # the else clause should never trigger; dead code hopefully
   }
   return \@ret;
 }

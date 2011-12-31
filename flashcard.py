@@ -371,8 +371,8 @@ class SetBase(UtilBase):
       #dt_min = max(dt_eg,min(250+self.total(),2500))
       #dt_min = max(dt_eg, 90+2*max(90,self.expire_h16()) )
       dt_min = max(dt_eg, 4+min(240, self.expire_h16()) )
-      dt_base = max(dt_eg, self.expire_h16() )
       dt_ne = now - self.pjs.set[self.index]['expire']
+      dt_base = max(dt_eg, 5,self.todo() )
       dt_max_day= min(7.4*dt_base, max(4.5*dt_eg, 6*dt_ne,1.3*self.todo()), 79073)
       dt = max(2.1*dt_eg,dt_max_day)
       #dt = min(12.2*dt_min, max(4.5*dt_min, 9*dt_ne),
@@ -631,7 +631,10 @@ class LojbanBase(SetBase):
   #now =0
   shared_cards = {}
   gismu_morna = re.compile("[bcdfgjklmnpqrstvxz][bcdfgjklmnpqrstvxz][aeiou]")
+  da_morna = re.compile("[a-z]{0,2}[aeiou][a-z']{0,2}")
   selmaho = {}
+  raf_sets = {}
+  raf_map = {}
   #selmahop = {}
 
   def kar_path(self):
@@ -682,12 +685,21 @@ class LojbanBase(SetBase):
       return
     gf = self.kar( "gismu.txt")
     for line in gf:
-      word = line[1:6]
+      word = line[1:6].rstrip()
       if LojbanBase.gismu_morna.search(word):
         LojbanBase.shared_cards[word + "0"] = ( word, line[7:])
         LojbanBase.shared_cards[word + "1"] = (
                              line[20:61] + "gismu" , line[1:] )
         #print line[1:6], '---', line[7:19], '---',line[20:61]'---',line[62:]
+      if LojbanBase.da_morna.search(word):
+        if LojbanBase.da_morna.search(line[7:19]):
+          #print line[1:6], '-', line[7:10] , '-',line[11:14], '-',line[15:19]
+          LojbanBase.raf_sets[word] = set([x.rstrip()
+              for x in [line[7:10],line[11:14],line[15:19]]
+              if LojbanBase.da_morna.search(x) ] )
+          for x in LojbanBase.raf_sets[word] :
+            #print x, '-->',word
+            LojbanBase.raf_map[x] =word
     gf.close()
     cf = self.kar( "cmavo.txt")
     cp = re.compile("[a-z']+")
@@ -864,7 +876,7 @@ class LojbanBase(SetBase):
 
 class LojbanByF(LojbanBase):
   'lojban by frequency'
-  byf_lists = {'valsi': [], 'gismu': [] , 'cmavo':[] }
+  byf_lists = {'valsi': [], 'gismu': [] , 'cmavo':[], 'rafsi':[] }
 
   def __init__(self, typen, vcnt):
     self.type_name = typen
@@ -1022,6 +1034,74 @@ class LojbanByF(LojbanBase):
     elif grow_sz > 0 :
       self.grow_set(grow_sz)
     random.shuffle(self.expired_queue)
+
+class LojbanRafByF(LojbanByF):
+  'lojban rafsi by frequency'
+  def __init__(self):
+    LojbanByF.__init__(self, 'rafsi', 20)
+    self.type_name = 'rafsi'
+
+  def init_raf_list(self):
+    'initialize raf list'
+    self.init_valsi_byf_list()
+    if len(LojbanByF.byf_lists['rafsi']) == 0:
+      for word in LojbanByF.byf_lists['valsi']:
+        if word in LojbanBase.raf_sets:
+          LojbanByF.byf_lists['rafsi'].append(word)
+          #print word
+
+
+  def gen_word_list(self):
+    'generate word list'
+    self.init_raf_list()
+    #self.word_order = LojbanByF.byf_lists[self.type_name]
+    return LojbanByF.byf_lists[self.type_name][:self.valsi_cnt]
+
+  # TODO FIXME these need to be overridden
+  def create_set(self):
+    'create set'
+    #print ' super creating ', self.name, ' begin '
+    wlist = self.gen_word_list()
+    self.pjs.so_far=len(wlist)
+    now = self.hard_now()
+    et = now -12
+    #min_et = len(wlist) + 4*min(900,len(wlist))
+
+    min_et = min(240, 2*len(wlist))
+    gt = et - min_et
+    bt = gt -999
+    for word in wlist:
+      self.pjs.set['V:'+word] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
+      for raf in LojbanBase.raf_sets[word]:
+        self.pjs.set['R:'+raf] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
+    self.total_cnt = len(self.pjs.set)
+    self.todo_cnt = self.total_cnt
+    #print ' super creating ', self.name, ' size ', self.total_cnt
+    self.stub = False
+
+  def grow_set(self): pass
+  # TODO FIXME these need to be overridden
+
+  def find_expired(self):
+    SetBase.find_expired(self)
+
+
+  def front(self):
+    'docstring'
+    self.realize()
+    if self.index:
+      return self.index
+    return 'You have completed this set'
+
+  def back(self):
+    'docstring'
+    #if self.index:
+    #  return self.cards[self.index][1]
+    return 'TODO back is deprecated for rafsi use FIXME'
+
+  def answers(self): pass
+  # back is no longer good use answers instead
+
 
 class LojbanByStatic(LojbanBase):
   'lojban by cmavo group'
@@ -1504,6 +1584,7 @@ class SetChooser:
       piter = self.tstore.append(topi, (RowTotal("cmevla"),))
       self.tstore.append(piter, (UtilBase('FIXME TODO'),))
       piter = self.tstore.append(topi, (RowTotal("rafsi"),))
+      self.tstore.append(piter, (LojbanRafByF(),))
       self.tstore.append(piter, (UtilBase('FIXME TODO'),))
       piter = self.tstore.append(topi, (RowTotal("lujvo"),))
       self.tstore.append(piter, (UtilBase('FIXME TODO'),))

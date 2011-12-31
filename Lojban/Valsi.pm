@@ -8,12 +8,14 @@ use warnings;
 use Exporter 'import';
 our @EXPORT_OK = qw(
     $STRESS $NO_STRESS $RELAX $PSTRESS $GOOD $WEAK_GOOD $WEAK_BAD $STRONG_BAD
-    $GOB %SM %SM_LIST $WEAK_SYLL $CMENE $BRIVLA $BRIVLA_ $BRIVLAS $GISMU $CMAVO
-    $CM_SIMPLE $LUJVO $FUH3 $FUH4 $CM_0 $GISMU_ $LUJVO_
-    $C $V $L $H $Y $X $WS $RAW_NUM classify_valsi fix_word);
+    $GOB %SM %SM_LIST $SYLL $WEAK_SYLL $CMENE $BRIVLA $BRIVLA_ $BRIVLAS
+    $GISMU $CMAVO
+    $CM_SIMPLE $LUJVO $FUH3 $FUH4 $CM_0 $GISMU_ $LUJVO_ $BAD_CC $BAD_CCC $CCC
+    $C $V $L $H $Y $X $YC $WS $WSS $RAW_NUM classify_valsi vlalei
+    fix_word fix_white fix_num );
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK] );
 
-our $VERSION = 0.000_006;
+our $VERSION = 0.000_007;
 
 # By Stephen Pollei
 # Copyright (C) 2011, "Stephen Pollei"<stephen.pollei@gmail.com>
@@ -52,26 +54,36 @@ sub cmavo_escape {
 
 
 our $WS =qr/ [\.\s[:punct:]] /ix;
+our $WSS =qr/ [\s[:punct:]]* [\.\s]+ [\s[:punct:]]* /ix;
 our $NOT_WS =qr/ [^\s.]+ /;
 our $C =qr/[bcdfgjklmnprstvxz],?/ix;
 our $V =qr/[aeiou],?/ix;
+
+#relaxed and stressed vowels; case sensitive is important !!
+our $VR =qr/[aeiou],?/x;
+our $VS =qr/[AEIOU],?/x;
+
 our $VY =qr/[aeiouy],?/ix;
 our $VH =qr/[aeiouh'],?/ix;
+our $NOVH =qr/(?! ,* [aeiouh']) /ix;
 our $VHY =qr/[aeiouyh'],?/ix;
+our $NOVHY =qr/(?! ,* [aeiouyh']) /ix;
 our $H =qr/[h'],?/ix;
 our $VHH =qr/$VH $H?/ix;
+our $VV = qr/ $V $H $V | a,?i,? | a,?u,? | e,?i,? | o,?i,? /ix;
 our $Y =qr/y,?/ix;
 our $L =qr/$C|$VHY/ix;
 our $YC =qr/$C|$Y/ix;
 our $BAD_W = make_list_pat( qw(h q w));
 our $X =qr/$L|$BAD_W/ix;
+our $NOX =qr/(?! ,* [[:alpha:]\'] )/ix;
 our $M =qr/ [lmnr] \,? /ix;
 our $YM =qr/ [lmnry] \,? /ix;
 our $BAD_CX = make_list_pat( qw(cx kx xc xk mz));
 our $BAD_CCC = make_list_pat( qw(ndj ndz ntc nts));
 our $BAD_VV = make_list_pat( qw(aa ae ao ea ee eo eu oa oe ou iy uy));
 our $BAD_DD = make_list_pat (
-         qw(bb cc dd ff gg hh jj kk ll mm nn pp qq rr ss tt vv ww xx zz));
+         qw(bb cc dd ff gg jj kk ll mm nn pp qq rr ss tt vv ww xx zz));
 our $VOICED = qr/[bdgjvz] ,? /ix;
 our $UNVOICED = qr/[cfkpstx] ,? /ix;
 our $BAD_XZ = qr/[ptkfcsx]\,?[bdgvjz]|[bdgvjz]\,?[ptkfcsx]|[cjsz]\,?[cjsz]/ix;
@@ -96,7 +108,7 @@ our $WEAK_BAD = qr/$BAD_W|$BAD_CC|$BAD_HH/ix;
 
 #our $CMENE = qr/$C [.]* $ /ix;
 our $CMENE_ = qr/ $X* $C (?! $X) /ix;
-our $CMENE = qr/ ^ $WS* $CMENE_ $WS* $ /ix;
+our $CMENE = qr/ ^ $WSS* $CMENE_ $WSS* $ /ix;
 our $L3_LAX =qr/(?: $L \'?){0,3}/ix;
 our $L3=qr/(?: $V $H? | $C (?= $V) ){0,3}/ix;
 our $V3=qr/(?: $V $H? ){0,3}/ix;
@@ -133,32 +145,39 @@ our $B_F = qr/ $C* $ICC $C* $VH{3,} (?! $VHY) /x;
 #our $B_F = qr/ $C* $PCC $C* $VH{3,} (?! $VHY) /x;
 our $BRIVLA_ = qr/ $B_C3 | $B_V3 | $B_F /ix;
 
-our $R_CVV =qr/$C$V$H$V|$C a,?i,?| $C e,?i.?| $C o,?i,? | $C a,?u,? /ix;
+#our $R_CVV =qr/$C$V$H$V|$C a,?i,?| $C e,?i.?| $C o,?i,? | $C a,?u,? /ix;
+our $R_CVV =qr/ $C $VV /ix;
 our $R_CVVR =qr/ $R_CVV $R_HYPH /ix;
 our $R_CVC = qr/ $C$V$C /ix;
 our $RAFC =qr/$C$V$C$C|$ICC$V$C|$C$V$C /ix;
+our $RAFV =qr/$ICC$V|$R_CVV/ix;
 our $RAFCY =qr/$C$V$C$C$Y_HYPH|$ICC$V$C$Y_HYPH|$C$V$C /ix;
 our $RAF = qr/$RAFCY$Y_HYPH?|$ICC$V|$R_CVV/ix;
-# tosmabru FIXME AUDIT tosmabru regex might be wrong
+# tosmabru FIXME AUDIT tosmabru regex *IS* wrong
 # #tosmabru if ($word =~ /^ [.]* $C $V ($L{4,}) [.]* $ /x ) { if (xu_brivla($1)) { return 0;} }
 # http://www.lojban.org/tiki/tosmabru+test
 # http://www.lojban.org/publications/reference_grammar/chapter4.html#s11
 our $TOSMABRU = qr/ (?= $R_CVC+ $GISMU_ ) $C $V $BRIVLA_ /ix;
 #our $TOSMABRU = qr/ $C $V $BRIVLA_ /ix;
+# tosmabru FIXME AUDIT tosmabru regex *IS* wrong
 our $LUJVO_ =qr/(?!$TOSMABRU)(?: $RAF | $R_CVVR) $RAF* (?: $RAF | $GISMU_) /ix;
 our $LUJVO = qr/ ^ [.]* $LUJVO_ [.]* $ /ix;
 #FIXME AUDIT is this lujvo regex really correct and sufficient? FIXME
 
 our $CCC =qr/ $C | $C$C | $C? $ICC+ /ix;
-our $SYLL =qr/ $M_HYPH? $CCC? $VHY+ $CCC? $M_HYPH? /ix;
-our $WEAK_SYLL =qr/ $M_HYPH? $C* $VHY+ $C* $M_HYPH? | $YM /ix;
+our $CCCYM =qr/ $YM* $CCC $YM*  | $YM+ /ix;
+#our $SYLL =qr/ $M_HYPH? $CCC? $VHY+ $CCC? $M_HYPH? /ix;
+our $SYLL =qr/ $CCCYM? (?: $VHY+ | $YM+) $CCCYM? /ix;
+#our $WEAK_SYLL =qr/ $M_HYPH? $C* $VHY+ $C* $M_HYPH? | $YM /ix;
+our $WEAK_SYLL =qr/ $YC* (?: $VHY+ | $YM+)  $YC* /ix;
 #our $SYLL_NOY =qr/ $M_HYPH? $CCC? $VH* $V $CCC? $M_HYPH? | $VHH+ $V /ix;
 our $SYLL_NOY =qr/ $M_HYPH? $CCC? $VH* $V $CCC? $M_HYPH? /ix;
 our $SYLL_BTAIL =qr/ $M_HYPH? (?: $CCC | $VH+) $VH* $V (?! $VHY) /ix;
-our $GOB =qr/ $M_HYPH? $C* (?: $VHY | $BAD_W)+ $C* $M_HYPH? | $YM /ix;
+#our $GOB =qr/ $M_HYPH? $C* (?: $VHY | $BAD_W)+ $C* $M_HYPH? | $YM /ix;
+our $GOB =qr/ $YC* (?: $VHY+ | $YM+ | $BAD_W+)  $YC* /ix;
 
-our $GOOD =qr/ ^ $WS* $SYLL+ $WS* $ /ix;
-our $WEAK_GOOD =qr/ ^ $WS* $WEAK_SYLL+ $WS* $ /ix;
+our $GOOD =qr/ ^ $WSS* $SYLL+ $WSS* $ /ix;
+our $WEAK_GOOD =qr/ ^ $WSS* $WEAK_SYLL+ $WSS* $ /ix;
 
 #FIXME 
 # slinku'i
@@ -166,16 +185,18 @@ our $WEAK_GOOD =qr/ ^ $WS* $WEAK_SYLL+ $WS* $ /ix;
   #if ($word =~ / ^ [.]* (?: $C?$V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_) [.]* $ /ix)
   # slinku'i paslinku'i
   #if (('pa' . $word) =~ $LUJVO ) { return 0; }
-our $FUH_NOCOMBO = qr/(?: $C?$V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_)/ix;
+our $FUH_NOCOMBO = qr/(?: $C?$V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_) $NOX /ix;
 #our $FUH_NOCOMBO = qr/$C (?: $V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_)/ix;
-our $SLI_RAF = qr/ [iu]\? $R_HYPH? | $C $C? $Y? /ix;
-our $SLINKUHI = qr/ $SLI_RAF $RAF* (?: $RAF | $GISMU_) /ix;
+#our $SLI_RAF = qr/ [iu] \,? $R_HYPH? | $R_HYPH | $C (?:$C$Y) /ix;
+our $SLI_RAF = qr/ $C (?:$C$Y) /ix;
+our $SLINKUHI = qr/ $SLI_RAF $RAF* (?: $RAFV | $GISMU_) $NOX /ix;
 our $BAD_FUH =qr/ $SLINKUHI | $FUH_NOCOMBO /ix;
 our $FUH3_ =qr/ (?! $BAD_FUH) $RAFC $L_HYPH $C (?: $C | $VH)* $V (?! $VHY ) /ix;
-our $FUH3  =qr/ ^ $WS* $FUH3_ $WS* $ /ix;
+our $FUH3  =qr/ ^ $WSS* $FUH3_ $WSS* $ /ix;
 #our $FUH4_ =qr/ (?: $C | $VH){3,} $VH (?! $VHY ) /ix;
-our $FUH4_ =qr/ $SYLL_NOY+ $SYLL_BTAIL /ix;
-our $FUH4  =qr/ ^ $WS* $FUH4_ $WS* $ /ix;
+our $FUH4_ =qr/ (?! $BAD_FUH) $SYLL_NOY+ $SYLL_BTAIL /ix;
+#our $FUH4_ =qr/ $SYLL_NOY+ $SYLL_BTAIL /ix;
+our $FUH4  =qr/ ^ $WSS* $FUH4_ $WSS* $ /ix;
 
 our $BRIVLA = qr/ ^ [.]* $BRIVLA_ [.]* $ /ix;
 #TODO AUDIT this brivla pattern is a bit tricky AUDIT
@@ -183,31 +204,39 @@ our $BRIVLAS =qr/ (?= $BRIVLA_) (?: $GISMU_ | $LUJVO_ | $FUH4_) /ix;
 
 # stress is very case sensitive
 our $NO_STRESS = qr/ [^AEIOU]+ /x;
-our $STRESS = qr/ [^AEIOU]+ (?: [AEIOU][Hh,']? )+ $VH* (?! $VHY) /x;
-our $RELAX = qr/ $YC+ (?: [aeiou][Hh,']? )+ (?! $VHY) /x;
+#TODO FIXME stress shouldn't extend over h' or ,
+our $STRESS = qr/ [^AEIOU]+ [AEIOU]+ $V{0,2} /x;
+our $RELAX = qr/ [hH',]? $YC* [aeiou]{1,2} [,]? (?! $H ) /x;
 our $PSTRESS = qr/ $STRESS $RELAX /x;
+#TODO FIXME stress shouldn't extend over h'
 
-#our $CM_OK = qr/  $WS* (?! $BRIVLAS | $CMENE_ ) /ix;
-our $CM_BAD = qr/  $WS* (?= $BRIVLAS | $CMENE_ ) /ix;
-our $CM_0 = qr/ (?! $CM_BAD) $C? $VH* $V (?! $VHY ) /ix;
+#our $CM_OK = qr/  $WSS* (?! $BRIVLAS | $CMENE_ ) /ix;
+our $CM_BAD = qr/  $WSS* (?= $BRIVLAS | $CMENE_ ) /ix;
+our $CM_V = qr/ $V | a,?i,? | a,?u,? | e,?i,? | o,?i,? /ix;
+our $CM_0 = qr/ (?! $CM_BAD) $C? $VH* $V (?! $VH ) /ix;
+our $CM_1 =qr/ (?! $CM_BAD) (?: [iu],? $V | $C? $CM_V (?: $H $CM_V){0,2} ) /ix;
+our $CM_2 =qr/ (?! $CM_BAD)  $C? $V $H? $V? (?! $VH) /ix;
 our $CM_Y =qr/ (?! $CM_BAD)$Y+ (?! $VHY) /ix;
 # TODO FIXME bu and other concrete cmavo need to go through make_cmavo_pat
-our $CM_YBU =qr/ $CM_Y (?:(?! $CM_BAD)bu)? (?! $VHY) /ix;
+#our $CM_YBU =qr/ $CM_Y (?:(?! $CM_BAD)bu)? (?! $VHY) /ix;
+our $CM_YBU =qr/ (?: $CM_2? $CM_Y | $CM_Y $CM_2? ) (?! $VHY) /ix;
 #our $CM_CY =qr/ (?=$CM_OK) (?:(?: $C$Y)+) (?! $VHY) /ix;
 our $CM_CY =qr/ (?! $CM_BAD ) (?: $C$Y) (?! $VHY) /ix;
 our $CM_CYBOI =qr/ $CM_CY+ (?:(?!$CM_BAD)boi)? (?! $VHY) /ix;
 our $CM_YHY = qr/ (?! $CM_BAD) y'y (?! $VHY) /ix;
 our $CM_YHYBU =qr/ $CM_YHY (?:(?! $CM_BAD)bu)? (?! $VHY) /ix;
-our $CM_SIMPLE =qr/  $WS* (?: $CM_0+ | $CM_YBU | $CM_CYBOI | $CM_YHYBU ) $WS*  /ix;
-our $CMAVO =qr/  $WS* (?: $CM_0 | $CM_Y | $CM_CY | $CM_YHY ) $WS*  /ix;
+our $CM_SIMPLE =qr/  $WSS* (?: $CM_1+ (?! $VHY) | $CM_YBU | $CM_CYBOI | $CM_YHYBU ) $WSS*  /ix;
+our $CMAVO =qr/  $WSS* (?: $CM_0 | $CM_Y | $CM_CY | $CM_YHY ) $WSS*  /ix;
+our $CMAVO_1 =qr/  $WSS* (?: $CM_1 | $CM_Y | $CM_CY | $CM_YHY ) $WSS*  /ix;
 
-our $RAW_NUM = qr/  [+-]? \d [\d_]* /x;
+our $RAW_DIGITS = qr/ [\d_,]* \d [\d_,]* /x;
+our $RAW_NUM = qr/  [+-]? $RAW_DIGITS (?: [.] $RAW_DIGITS)? /x;
 
 sub make_cmavo_pat {
   my @li = map (cmavo_escape($_)   , @_ ) ;
   my $pat= join(q{|},@li) ;
   #say $pat;
-  my $ret= qr/ (?! $CM_BAD) (?: $pat ) (?! $VHY) /ix;
+  my $ret= qr/ (?! $CM_BAD) (?: $pat ) (?! $VH) /ix;
   #print $ret, "\n\n";
   # in trying to debug this thing I noticed that printing out
   # the pattern this thing creates is just plain huge and ugly
@@ -221,6 +250,16 @@ sub make_cmavo_pat {
 # http://www.lojban.org/tiki/Experimental+cmavo
 # pattern match on selma'o 
 # should have all of the normal cmavo and most of the experimental
+our   @UI0 =  qw( a'a a'e a'i a'o a'u ai au ba'a ba'u be'u bi'u bu'o ca'e
+      da'i dai do'a e'a e'e e'i e'o e'u ei fu'i ga'i ge'e i'a i'e i'i
+      i'o i'u ja'o je'u ji'a jo'a ju'a ju'o ka'u kau
+      ke'u ki'a ku'i la'a le'o li'a li'o mi'u mu'a na'i o'a o'e o'i
+      o'o o'u oi pa'e pau pe'a pe'i po'o ra'u re'e ri'e ro'a ro'e ro'i
+      ro'o ro'u ru'a sa'a sa'e sa'u se'a se'i se'o si'a su'a ta'o ta'u
+      ti'e to'u u'a u'e u'i u'o u'u va'i vu'e xu za'a
+      zo'o zu'u a'a'a a'o'e bu'a'a fu'au li'oi sei'u xo'o ) ;
+our @UI1 = qw(ia ie ii io iu ua ue ui uo uu );
+# these ui are separated out for special treatment
 our %SM;
 our %SM_LIST= ( 
    A =>  [qw( a e ji o u )] ,
@@ -344,14 +383,7 @@ our %SM_LIST= (
    TOI =>  [qw( toi )] ,
    TUhE =>  [qw( tu'e )] ,
    TUhU =>  [qw( tu'u )] ,
-   UI =>  [qw( a'a a'e a'i a'o a'u ai au ba'a ba'u be'u bi'u bu'o ca'e
-      da'i dai do'a e'a e'e e'i e'o e'u ei fu'i ga'i ge'e i'a i'e i'i
-      i'o i'u ia ie ii io iu ja'o je'u ji'a jo'a ju'a ju'o ka'u kau
-      ke'u ki'a ku'i la'a le'o li'a li'o mi'u mu'a na'i o'a o'e o'i
-      o'o o'u oi pa'e pau pe'a pe'i po'o ra'u re'e ri'e ro'a ro'e ro'i
-      ro'o ro'u ru'a sa'a sa'e sa'u se'a se'i se'o si'a su'a ta'o ta'u
-      ti'e to'u u'a u'e u'i u'o u'u ua ue ui uo uu va'i vu'e xu za'a
-      zo'o zu'u a'a'a a'o'e bua'a'a fu'au li'oi sei'u xo'o )] ,
+   UI =>  [ @UI0, @UI1] ,
    VA =>  [qw( va vi vu )] ,
    VAU =>  [qw( vau vau'a vau'e vau'i vau'o vau'u)] ,
    VEhA =>  [qw( ve'a ve'e ve'i ve'u )] ,
@@ -379,7 +411,8 @@ our %SM_LIST= (
 # me'ei me'au  -- maybe add these as well
 
 for my $skey (keys %SM_LIST) {
-  $SM{$skey} = make_cmavo_pat( @{ $SM_LIST{$skey} }); }
+  $SM{$skey} = make_cmavo_pat( @{ $SM_LIST{$skey} });
+}
 
 
 $SM{BRIVLA}=$BRIVLA_;
@@ -472,9 +505,12 @@ sub test_regex_foundation0 () {
   #q{ge'uzdani} =~ $LUJVO and die;
   q{ge'urzdani} =~ $LUJVO or die;
   q{slinku'i} =~ $FUH3 and die;
+  q{ui} =~ $SM{UI} or die;
   #my $test_zoi1 = qq{$SM_ZOI};
   #say ref($SM_ZOI), q{ --  }, ref($test_zoi1), q{ -- };
+
   # http://www.lojban.org/tiki/Exhaustive+list+of+short+fu%27ivla+forms
+  # saiaspa was in a list of fu'ivla but I don't count it as such
   my @flist = qw(iglu spa'i spraile
     praia  spra'i  ostoi  astro  uiski 
     ma'agni  saprka  brai'oi  tce'exo  stroia
@@ -488,31 +524,104 @@ sub test_regex_foundation0 () {
     saktrxaceru cirlrbri sincrkobra saskrkuarka
     djinrnintegrale tarmrnintegrale
     tci'ile
-    );
-  for my $fw (@flist) {
-    if ($fw !~ $FUH4) {say 'bad fuh ', $fw ,' ', vlalei($fw); }
-    say vlalei($fw), ' ', $fw;
-    }
-  my @flist2 = qw(alga iksoia odbenu aksroi iandau  saiaspa  
+    alga iksoia odbenu aksroi iandau
     apsaiai  apsapai  apsaipa apsaspa
      arpraia  apsrkai ainstai airpasa  airpaia tsmla'i  
-   tsmlaia  tsmlatu stsmla'u   );
-  for my $fw (@flist2) {
-    say vlalei($fw), ' ', $fw;
-    #say $fw;
+   tsmlaia  tsmlatu stsmla'u
+    );
+  for my $fw (@flist) {
+    if ($fw !~ $FUH4) {say 'bad fuh ', $fw ,' ', vlalei($fw); die; }
+    if ( $fw =~ / ^ ($SLI_RAF) ($RAF*) ($RAFV | $GISMU_) /ix ) {
+      say 'bad slinkuhi fuh<',$1,'><',$2,'><',$3,'>'; }
+    if ($fw =~ / ^ ($C?$V$H?$V?){1,6} ($GISMU_ | $LUJVO_) /ix) {
+      say 'bad combo fuh<',$1,'><',$2,'>'; }
+    #if ($fw =~ $SLINKUHI) {say 'bad slinkuhi fuh ', $fw ,' ', vlalei($fw); }
+  #our $SLINKUHI = qr/ $SLI_RAF $RAF* (?: $RAF | $GISMU_) $NOX /ix;
+  #our $FUH_NOCOMBO = qr/(?: $C?$V$H?$V?){1,6} (?: $GISMU_ | $LUJVO_) $NOX /ix;
+    #if ($fw =~ $FUH_NOCOMBO) {say 'bad combo fuh ', $fw ,' ', vlalei($fw); }
+    #$fw =~ $FUH4 or die;
+    #$fw =~ /^ $BRIVLAS /ix or die;
+    #$fw =~ /^ $BRIVLAS $ /ix or die;
     #if ($fw !~ $FUH4) {say 'bad fuh ', $fw ,' ', vlalei($fw); }
-    #if ($fw !~ $CC5) {say 'bad cc5 ', $fw; }
-    #if ($fw =~ /^ $CMAVO /x) {say 'bad fuh cmavo  ', $fw, ' ',vlalei($fw); }
+    }
+
+  for my $sm_key (keys %SM_LIST) {
+    for my $cm ( @{ $SM_LIST{$sm_key} } ) {
+      $cm =~ /^ $CMAVO $ /ix or die;
+      $cm =~ /^ $CMAVO_1 $ /ix or die;
+    }
   }
+
   return;
 }
 
-#FIXME TODO STUB
+my %fix_numy = (
+    '0' => 'no',
+    '1' => 'pa', '2' => 're', '3' => 'ci', '4' => 'vo', '5' => 'mu',
+    '6' => 'xa', '7' => 'ze', '8' => 'bi', '9' => 'so',
+    q{,} => q{ki'o}, q{_} => q{ki'o}, q{.} => q{pi},
+    q{+} => q{ma'u}, q{-} => q{ni'u}
+);
+
+sub fix_num {
+  my ($word) =@_;
+  my $rword=q{ .};
+  for my $let (split m//m,$word) {
+    $rword .= $fix_numy{$let};
+  }
+  return $rword . q{. } ;
+}
+
+sub fix_white {
+  my ($word) =@_;
+  $word =~ s/[,']+/./g;
+  return $word;
+}
+
 sub fix_word {
   my ($word) =@_;
-  return q{.. ..} . $word . q{.. ..};
+  if ($word =~ / ^ $RAW_NUM $ /x ) {
+    return fix_num($word);
+  }
+  $word =~ s/$H{2,}/'/g;
+  $word =~ s/[hH]+/'/g;
+  $word =~ s/^[\s,.]+//g;
+  $word =~ s/[\s,.]+$//g;
+  $word =~ s/[,]{2,}/,/g;
+  if ($word =~ / [qw] | ^ $H | $H $C /ix or
+      $word !~ / ^ $SYLL+ $ /sx ) {
+    $word =~ s/[^[:alpha:],']//g;
+    # force it to be a cmene
+    if ($word !~ / $C $ /x) {
+      $word .= q{r}; }
+    $word =~ s/w/uu/ig;
+    $word =~ s/q/yky/ig;
+    if ($word =~ / ^ $H /x) {
+      $word = q{y} . $word;}
+    while ($word =~ / ^ ($X $H) ($C .*) $ /x ) {
+      $word = $1 . q{y} . $2; }
+    while ($word =~ / ^ ($X* (?= $BAD_CC) $C) ($C .* )  $ |
+                      ^ ($X* (?= $BAD_CCC) $C $C ) ($C .* ) $ /ix) {
+      $word = $1 . q{y} . $2; }
+    if ($word !~ / $SYLL $ / ) {
+      if ($word =~ / ( $X* $C) ( (?= $CCC) $C $C $C) /ix) {
+        $word = $1 . q{y} . $2; }
+      elsif ($word =~ / ( $X* $C) ( $C $C ) /ix) {
+        $word = $1 . q{y} . $2; }
+      elsif ($word =~ / ( $X* $C) ( $C ) /ix) {
+        $word = $1 . q{y} . $2; }
+    }
+    while ($word =~ / ($X*? (?! $SYLL) $C )
+                      ( (?= $SYLL) $CCC $X* ) $/x ) {
+      $word = $1 . q{y} . $2; }
+    #if ( $word =~ / ^ ( (?! $SYLL) $CCC) ( (?= $SYLL) $CCC .* | $CCC ) $ /x) {
+    #  $word = $1 . q{y} . $2; }
+    if ( $word =~ / ^ (?! $SYLL) $C $ /x) {
+      $word = q{y} . $word; }
+    return q{.} . $word . q{.};
+  }
+  return $word ;
 }
-#FIXME TODO STUB
 
 # join an array of rafsi into a lujvo
 sub rafyjongau {
