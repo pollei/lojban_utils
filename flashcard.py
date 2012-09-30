@@ -4,7 +4,7 @@
  attempts to be flash card program; has some lojban specific quirks
 """
 
-# copyright (C) 2009/2010 "Stephen Joseph Pollei" <stephen.pollei@gmail.com>
+# copyright (C) 2009/2012 "Stephen Joseph Pollei" <stephen.pollei@gmail.com>
 # licensed gplv3 or later -- http://www.fsf.org/licensing/licenses/gpl.html
 
 # attempts to be flash card program; has some lojban specific quirks
@@ -14,7 +14,7 @@
 
 
 # works under Linux
-# untested on Windows and Mac osx
+# untested on MS Windows and Mac osx
 
 # links to help you get stuff installed for windows
 # http://python.org/ftp/python/2.6.3/python-2.6.3.msi
@@ -74,12 +74,12 @@
 
 
 # http://www.pygtk.org/
-import pygtk
-pygtk.require('2.0')
-import gtk
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
 # http://docs.python.org/library/
-import re, random, time, cPickle, os, urllib
+import re, random, time, cPickle, os, urllib, sys
 # os.listdir, os.name 'posix' , os.mkdir
 
 
@@ -99,7 +99,7 @@ bai_gismu_list = [
 
 class UtilBase:
   'utility base'
-  now = 0
+  now = 0.0
 
   def __init__(self, name='', clh=False, stb=True):
     self.name = name
@@ -118,7 +118,7 @@ class UtilBase:
     return UtilBase.now
   def soft_now(self):
     'docstring'
-    if UtilBase.now > 99:
+    if UtilBase.now > 99.9:
       return UtilBase.now
     else:
       return self.hard_now()
@@ -131,7 +131,7 @@ class UtilBase:
   #  'this should be overriden later'
   #  return '     '
 
-  def format_time(self,tim):
+  def format_time(self, tim):
     'format time'
     now = self.soft_now()
     ltim = time.localtime(tim)
@@ -202,6 +202,8 @@ class Pjs:
   'pickle jar storage'
   def __init__(self):
     self.set = {}
+    self.gset = {}
+    self.config = {}
 
 class SetBase(UtilBase):
   'set base'
@@ -251,7 +253,7 @@ class SetBase(UtilBase):
       self.expired_queue.append(tmp)
     recent_wrong = (wr_sz and
        self.pjs.set[self.wrong_queue[0]]['lbad'] <
-               (self.soft_now()-25-min(25,ex_sz/10)) )
+               (self.soft_now()-25-min(25,ex_sz/10.0)) )
     if not in_wr and recent_wrong:
       self.index = self.wrong_queue[0]
     elif ex_sz:
@@ -264,7 +266,7 @@ class SetBase(UtilBase):
   def find_earliest_expired_time(self, model=None, itera=None):
     'docstring'
     if self.stub:
-      return self.soft_now()-99
+      return self.soft_now()-99.9
     kitems = self.pjs.set.keys()
     #print 'kitems ', kitems[0]
     eet = self.pjs.set[kitems[0]]['expire']
@@ -276,7 +278,7 @@ class SetBase(UtilBase):
   def find_last_expired_time(self, model=None, itera=None):
     'docstring'
     if self.stub:
-      return self.soft_now()-99
+      return self.soft_now()-99.9
     kitems = self.pjs.set.keys()
     #print 'kitems ', kitems[0]
     ltet = self.pjs.set[kitems[0]]['expire']
@@ -329,6 +331,7 @@ class SetBase(UtilBase):
     if len(self.expired_queue)==0 and len(self.wrong_queue)==0:
       self.find_expired()
       self.dump_pickle()
+    # 25 minutes
     elif now > (self.last_find_expired + 1500) and len(self.wrong_queue)==0:
       self.find_expired()
       self.dump_pickle()
@@ -363,18 +366,20 @@ class SetBase(UtilBase):
     now = self.hard_now()
     if self.pjs.set[self.index]['lbad'] > self.pjs.set[self.index]['lgood']:
       dt_nb = now - self.pjs.set[self.index]['lbad']
-      dt_max = max(min(25,dt_nb+5), self.todo() )
-      self.pjs.set[self.index]['expire'] = now+min(dt_max, 251)
+      dt_max = max(min(25.0+self.todo(), dt_nb+5.8), 1.6*self.todo() )
+      self.pjs.set[self.index]['expire'] = now+min(dt_max, 251.0)
     else:
       dt_eg = (self.pjs.set[self.index]['expire'] -
               self.pjs.set[self.index]['lgood'] )
       #dt_min = max(dt_eg,min(250+self.total(),2500))
       #dt_min = max(dt_eg, 90+2*max(90,self.expire_h16()) )
-      dt_min = max(dt_eg, 4+min(240, self.expire_h16()) )
+      dt_min = max(dt_eg, 4.0+min(240.0, self.expire_h16()) )
       dt_ne = now - self.pjs.set[self.index]['expire']
-      dt_base = max(dt_eg, 5,self.todo() )
-      dt_max_day= min(7.4*dt_base, max(4.5*dt_eg, 6*dt_ne,1.3*self.todo()), 79073)
-      dt = max(2.1*dt_eg,dt_max_day)
+      dt_base = max(dt_eg, 6.5, self.todo() )
+      # a little under 22 hours
+      dt_max_day = min(7.4*dt_base,
+                  max(4.5*dt_eg, 6.0*dt_ne, 1.9*self.todo()), 79073.0)
+      dt = max(2.1*dt_eg, dt_max_day)
       #dt = min(12.2*dt_min, max(4.5*dt_min, 9*dt_ne),
       #         dt_eg+86400+45*self.total())
       #dt = min(12.2*dt_min, max(4.5*dt_min,9*dt_ne), dt_eg+86400)
@@ -459,6 +464,8 @@ class SetBase(UtilBase):
     try:
       #foo=cPickle.load(pf)
       self.pjs = cPickle.load(pf)
+      if 'config' not in dir(self.pjs) :
+        self.pjs.config = {}
     except Exception, prob:
       print 'load pickle : ', prob
       self.pjs = Pjs()
@@ -497,7 +504,7 @@ class SetBase(UtilBase):
     'docstring'
     now = self.hard_now()
     self.start_time = now
-    self.end_time = now+time_limit*60
+    self.end_time = now+time_limit*60.0
 
   def reset(self):
     'docstring'
@@ -513,7 +520,7 @@ class SetBase(UtilBase):
     self.wrong_queue = []
     self.stub = True
     self.pjs = {}
-    self.last_find_expired = 0
+    self.last_find_expired = 0.0
     #self.pjs['set'] = {}
     #self.__init__(self.name,self.can_launch)
     # FIXME TODO BUG calling __init__ doesn't reset the state properly
@@ -537,10 +544,10 @@ class SetBase(UtilBase):
     self.index = None
     self.expired_queue = []
     self.wrong_queue = []
-    self.last_find_expired = 0
+    self.last_find_expired = 0.0
     now = self.soft_now()
     self.start_time = now
-    self.end_time = now+300
+    self.end_time = now+300.0
     self.load_pickle()
 
 # level 1 has 4 items of context; usually 2 before and 2 after
@@ -579,10 +586,10 @@ class SeqBase(SetBase):
   def create_set(self):
     'docstring'
     now = self.hard_now()
-    et = now -12
-    min_et = min(240, 2*len(self.cards))
+    et = now -12.0
+    min_et = min(240.0, 2*len(self.cards))
     gt = et - min_et
-    bt = gt -999
+    bt = gt -999.9
     for nn in range(len(self.cards)):
       self.pjs.set[str(nn)] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
     self.total_cnt = len(self.cards)
@@ -609,13 +616,13 @@ class InlineBase(SetBase):
   def create_set(self):
     'create set'
     now = self.hard_now()
-    et = now -12
+    et = now -12.0
     min_et = min(240, 2*len(self.cards))
     gt = et - min_et
-    bt = gt -999
+    bt = gt -999.9
     # BUG FIXME this loop can be made generic
     # and then create_set can be moved up to SetBase BUG FIXME
-    for nn in range(len(self.cards)/2):
+    for nn in range(len(self.cards)//2):
       self.pjs.set['a'+str(nn)] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
       self.pjs.set['b'+str(nn)] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
     self.total_cnt = len(self.cards)
@@ -661,7 +668,7 @@ class LojbanBase(SetBase):
     # .jbo_fc maybe only make one directory cut in ~ -- down on clutter
     if os.name in [ 'posix', 'unix', 'linux' ]:
       pname = os.path.expanduser('~/.lojban/')
-      os.makedirs(pname, 0770)
+      os.makedirs(pname, 0o770)
       cname = os.path.join(pname, 'cmavo.txt')
       gname = os.path.join(pname, 'gismu.txt')
       urllib.urlretrieve(
@@ -699,7 +706,7 @@ class LojbanBase(SetBase):
               if LojbanBase.da_morna.search(x) ] )
           for x in LojbanBase.raf_sets[word] :
             #print x, '-->',word
-            LojbanBase.raf_map[x] =word
+            LojbanBase.raf_map[x] = word
     gf.close()
     cf = self.kar( "cmavo.txt")
     cp = re.compile("[a-z']+")
@@ -722,7 +729,8 @@ class LojbanBase(SetBase):
         if bpm and not baip.match(line[11:19]):
           bonus = bpm.group(0)
         smw = spm.group(0)
-        if LojbanBase.selmaho.has_key(smw) :
+        #if LojbanBase.selmaho.has_key(smw) :
+        if smw in LojbanBase.selmaho :
           LojbanBase.selmaho[smw].append(word)
         else:
           LojbanBase.selmaho[smw] = [word]
@@ -823,12 +831,12 @@ class LojbanBase(SetBase):
     #print ' super creating ', self.name, ' begin '
     wlist = self.gen_word_list()
     now = self.hard_now()
-    et = now -12
+    et = now -12.0
     #min_et = len(wlist) + 4*min(900,len(wlist))
 
     min_et = min(240, 2*len(wlist))
-    rgt = et - min_et
-    rbt = rgt -999
+    rgt = et - 0.5
+    rbt = rgt -999.9
     for word in wlist:
       try:
         e0 = o_set.set[word+'0']['expire'] - (
@@ -841,7 +849,7 @@ class LojbanBase(SetBase):
           # make these expire times longer as well 
           gt = et - max(min_et, 0.75*min(e0, e1))
           #if gt < rgt : print 'super creation worked for ' , word
-          bt = gt - 999
+          bt = gt - 999.9
         else:
           # the second copy_how way does a more direct copy
           # if you know the word well
@@ -864,8 +872,10 @@ class LojbanBase(SetBase):
         bt = rbt
         # if the set didn't exist in the old original set then
         # a KeyError exception will be raised and we can use a sane default
-      self.pjs.set[word+'0'] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
-      self.pjs.set[word+'1'] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
+      r0 = 7.9*random.random()
+      r1 = 7.9*random.random()
+      self.pjs.set[word+'0'] = { 'expire':  et, 'lgood': gt-r0, 'lbad': bt}
+      self.pjs.set[word+'1'] = { 'expire':  et, 'lgood': gt-r1, 'lbad': bt}
     self.total_cnt = len(wlist)*2
     self.todo_cnt = self.total_cnt
     #print ' super creating ', self.name, ' size ', self.total_cnt
@@ -928,7 +938,7 @@ class LojbanByF(LojbanBase):
   def grow_set(self, amount):
     'grow a set'
     #self.total_cnt= self.total_cnt+2*amount
-    start_ind = self.total_cnt/2
+    start_ind = self.total_cnt//2
     wl_sz = len( LojbanByF.byf_lists[self.type_name])
     if start_ind >= wl_sz :
       return
@@ -936,33 +946,29 @@ class LojbanByF(LojbanBase):
     # FIXME AUDIT a lot of this only triggers near the end,
     # so is under tested FIXME AIDIT
     left_sz = wl_sz-start_ind
-    if left_sz < 24 and amount < left_sz :
-      return
     if amount > left_sz : amount = left_sz
     if left_sz < 50 :
-      if amount < 12 :
-        return
       if left_sz > 24 :
-        if amount > left_sz/2 +1 and left_sz-amount < 12 and amount < left_sz :
-          amount = left_sz/2 +1
-      elif amount < left_sz :
-        return
-    elif amount < 12 :
-      amount = 12
+        if amount > left_sz//2 +1 and left_sz-amount < 12 and amount < left_sz :
+          amount = left_sz//2 +1
 
     end_ind = start_ind + amount
     add_list = LojbanByF.byf_lists[self.type_name][start_ind:end_ind]
     now = self.soft_now()
-    et = now -12
+    et = now -12.0
     min_et = min(240, 2*end_ind)
-    gt = et - min_et
-    bt = gt -999
+    gt = et - 0.5
+    bt = gt -999.9
     for word in add_list :
       print 'growing ', word
-      self.pjs.set[word+'0'] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
-      self.pjs.set[word+'1'] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
-      self.expired_queue.append(word+'0')
-      self.expired_queue.append(word+'1')
+      r0 = 7.9*random.random()
+      r1 = 7.9*random.random()
+      self.pjs.set[word+'0'] = { 'expire':  et, 'lgood': gt-r0, 'lbad': bt}
+      self.pjs.set[word+'1'] = { 'expire':  et, 'lgood': gt-r1, 'lbad': bt}
+      if self.pjs.set[word+'0']['lgood'] < self.pjs.set[word+'1']['lgood'] :
+        self.expired_queue.append(word+'0')
+      else :
+        self.expired_queue.append(word+'1')
     self.total_cnt = self.total_cnt+2*amount
     self.todo_cnt = self.todo_cnt+2*amount
     self.expire_h16_cnt = self.expire_h16_cnt+2*amount
@@ -972,7 +978,7 @@ class LojbanByF(LojbanBase):
   def find_expired(self, force=False):
     #print 'finding expired for ', self.name
     now = self.soft_now()
-    if now > (self.last_find_expired + 787) :
+    if now > (self.last_find_expired + 787.0) :
       force = True
     if len(self.expired_queue) or len(self.wrong_queue) :
       if force:
@@ -996,7 +1002,8 @@ class LojbanByF(LojbanBase):
     #print 'word size list',len(LojbanByF.byf_lists[self.type_name])
     if len(LojbanByF.byf_lists[self.type_name]) == 0 :
       self.gen_word_list()
-    for word in LojbanByF.byf_lists[self.type_name][:self.total_cnt/2]:
+    #for word in LojbanByF.byf_lists[self.type_name][:self.total_cnt/2]:
+    for word in LojbanByF.byf_lists[self.type_name][:self.total_cnt//2]:
       #print 'evaluating:', word
       if (now >  self.pjs.set[word+'0']['expire'] +115200) :
         stale_cnt = stale_cnt +1
@@ -1007,30 +1014,47 @@ class LojbanByF(LojbanBase):
         stale_cnt = stale_cnt +1
         if stale_cnt > 110 :
           break
-      if now > self.pjs.set[word+'0']['expire']:
+
+      # only put one of the pairs in at a time
+      # and not too soon after another was answered
+      la0 = max( self.pjs.set[word+'0']['lgood'] ,
+                 self.pjs.set[word+'0']['lbad'] )
+      la1 = max( self.pjs.set[word+'1']['lgood'] ,
+                 self.pjs.set[word+'1']['lbad'] )
+      twin_t = min(36987.6,
+         (self.pjs.set[word+'0']['expire']- la0 ) ,
+         (self.pjs.set[word+'1']['expire']- la1 ) )/5.0
+      ex0 = now > self.pjs.set[word+'0']['expire'] and now > la1+twin_t
+      ex1 = now > self.pjs.set[word+'1']['expire'] and now > la0+twin_t
+
+      if ex0 and ex1 :
+        if self.pjs.set[word+'0']['expire'] < self.pjs.set[word+'1']['expire'] :
+          self.expired_queue.append(word+'0')
+        else :
+          self.expired_queue.append(word+'1')
+      elif ex0 :
         self.expired_queue.append(word+'0')
+      elif ex1 :
+        self.expired_queue.append(word+'1')
+
       if dt_fresh > (self.pjs.set[word+'0']['expire']-
                      self.pjs.set[word+'0']['lgood']) :
         fresh_cnt = fresh_cnt +1
-      if now > self.pjs.set[word+'1']['expire']:
-        self.expired_queue.append(word+'1')
       if dt_fresh > (self.pjs.set[word+'1']['expire']-
                      self.pjs.set[word+'1']['lgood']) :
         fresh_cnt = fresh_cnt +1
     eq_sz = len(self.expired_queue)
     self.todo_cnt = eq_sz
-    work_max = min(400, int((self.end_time-now)/8))
-    hard_cnt = fresh_cnt+stale_cnt
-    grow_sz = min(37,(110-hard_cnt)/2,(work_max-eq_sz-hard_cnt)/2)
-    if self.end_time-now < 300+3*hard_cnt:
-      grow_sz = grow_sz-14
-    #print 'eq_sz:', eq_sz, ' grow_sz: ', grow_sz, ' stale_cnt:', stale_cnt
-    #print ' fresh_cnt: ', fresh_cnt, ' work_max: ', work_max
-    #print now
-    if eq_sz > 800 :
-      self.expired_queue = self.expired_queue[:400]
-    elif eq_sz > 400 :
-      self.expired_queue = self.expired_queue[:eq_sz/2]
+    work_max = int(min(15, (self.end_time-now)/8.6))
+    hard_cnt = min(fresh_cnt+stale_cnt, eq_sz//3)
+    grow_sz = min(5,(110-hard_cnt)//2,(work_max-eq_sz-hard_cnt)//2)
+    print 'eq_sz:', eq_sz, ' grow_sz: ', grow_sz, ' stale_cnt:', stale_cnt
+    print ' fresh_cnt: ', fresh_cnt, ' work_max: ', work_max
+    print 'time left:', self.end_time-now , 'now:', now
+    if eq_sz > 100 :
+      self.expired_queue = self.expired_queue[:50]
+    elif eq_sz > 22 :
+      self.expired_queue = self.expired_queue[:eq_sz//2]
     elif grow_sz > 0 :
       self.grow_set(grow_sz)
     random.shuffle(self.expired_queue)
@@ -1039,6 +1063,7 @@ class LojbanRafByF(LojbanByF):
   'lojban rafsi by frequency'
   def __init__(self):
     LojbanByF.__init__(self, 'rafsi', 20)
+    self.init_byf_lists()
     self.type_name = 'rafsi'
 
   def init_raf_list(self):
@@ -1062,14 +1087,14 @@ class LojbanRafByF(LojbanByF):
     'create set'
     #print ' super creating ', self.name, ' begin '
     wlist = self.gen_word_list()
-    self.pjs.so_far=len(wlist)
+    self.pjs.so_far = len(wlist)
     now = self.hard_now()
-    et = now -12
+    et = now -12.0
     #min_et = len(wlist) + 4*min(900,len(wlist))
 
     min_et = min(240, 2*len(wlist))
     gt = et - min_et
-    bt = gt -999
+    bt = gt -999.9
     for word in wlist:
       self.pjs.set['V:'+word] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
       for raf in LojbanBase.raf_sets[word]:
@@ -1085,22 +1110,123 @@ class LojbanRafByF(LojbanByF):
   def find_expired(self):
     SetBase.find_expired(self)
 
+  def find_bogus_rafsi(self):
+    word = self.index[2:]
+    ccvcv = re.compile('[b-z][b-z][aeiou][b-z][aeiou]')
+    cvccv = re.compile('[b-z][aeiou][b-z][b-z][aeiou]')
+    if ccvcv.match(word) :
+      return [ word[0]+word[2]+word[3],
+               word[1]+word[2]+word[3],
+               word[0]+word[2]+'\''+word[4],
+               word[0]+word[2]+word[4],
+               word[1]+word[2]+'\''+word[4],
+               word[1]+word[2]+word[4],
+               word[0]+word[1]+word[2], ]
+    if cvccv.match(word) :
+      return [ word[0]+word[1]+word[2],
+               word[0]+word[1]+word[3],
+               word[0]+word[1]+'\''+word[4],
+               word[0]+word[1]+word[4],
+               word[2]+word[3]+word[4],
+               word[0]+word[2]+word[1], ]
+    ret = [ word, word[0]+'v'+word[1], word[0]+'z'+word[1], 
+            word[0]+word[1]+'\'i', word[0]+word[1]+'\'o' ]
+    for l in 'bcfijlmnprstuvz':
+      ret.append(word[0]+word[1]+l)
+    return ret
+
+  def find_bogus_valsi(self):
+    raf = self.index[2:]
+    ret = []
+    cvhv = re.compile('[b-z][aeiou]\'[aeiou]')
+    cvv = re.compile('[b-z][aeiou][aeiou]')
+    cvc = re.compile('[b-z][aeiou][bcdfgjklmnprstvxz]')
+    ccv = re.compile('[b-z][bcdfgjklmnprstvxz][aeiou]')
+    if cvhv.match(raf) :
+      ret = [raf, raf[0]+raf[1] ]
+      for w in LojbanByF.byf_lists['gismu'] :
+        if raf[0] == w[0] and raf[1] == w[1] and raf[3] == w[4] :
+          ret.append(w)
+        if raf[0] == w[0] and raf[1] == w[2] and raf[3] == w[4] :
+          ret.append(w)
+        if raf[0] == w[1] and raf[1] == w[2] and raf[3] == w[4] :
+          ret.append(w)
+      return ret
+    if cvv.match(raf) :
+      ret = [raf, raf[0]+raf[1] ]
+      for w in LojbanByF.byf_lists['gismu'] :
+        if raf[0] == w[0] and raf[1] == w[1] and raf[2] == w[4] :
+          ret.append(w)
+        if raf[0] == w[0] and raf[1] == w[2] and raf[2] == w[4] :
+          ret.append(w)
+        if raf[0] == w[1] and raf[1] == w[2] and raf[2] == w[4] :
+          ret.append(w)
+      return ret
+    if cvc.match(raf) :
+      ret = [raf[0]+raf[1], raf[0]+raf[1]+'i', raf[0]+raf[1]+'u' ]
+      for l in 'aeiou':
+        ret.append(raf[0]+raf[1]+'\''+l)
+      for w in LojbanByF.byf_lists['gismu'] :
+        if raf[0] == w[0] and raf[1] == w[1] and raf[2] == w[2] :
+          ret.append(w)
+        if raf[0] == w[0] and raf[1] == w[1] and raf[2] == w[3] :
+          ret.append(w)
+        if raf[0] == w[0] and raf[1] == w[2] and raf[2] == w[3] :
+          ret.append(w)
+        if raf[0] == w[1] and raf[1] == w[2] and raf[2] == w[3] :
+          ret.append(w)
+      return ret
+    if ccv.match(raf) :
+      ret = [raf[0]+raf[2], raf[0]+raf[2]+'i', raf[0]+raf[2]+'u' ]
+      for l in 'aeiou':
+        ret.append(raf[0]+raf[2]+'\''+l)
+      for w in LojbanByF.byf_lists['gismu'] :
+        if raf[0] == w[2] and raf[1] == w[3] and raf[2] == w[4] :
+          ret.append(w)
+        if raf[0] == w[0] and raf[1] == w[2] and raf[2] == w[1] :
+          ret.append(w)
+        if raf[0] == w[0] and raf[1] == w[1] and raf[2] == w[2] :
+          ret.append(w)
+      return ret
+    return ['gismu', 'da', 'blarg', 'buff', 'TODO', 'FIXME']
+
+  def answers(self):
+    'return the right answers and some bogus but deceive worthy ones'
+    ret = { 'right':[], 'bogus':[] }
+    if self.index:
+      if self.index[0] == 'R' :
+        ret['right'] = [ LojbanBase.raf_map[self.index[2:] ] ]
+        ret['bogus'] = self.find_bogus_valsi()
+      else:
+        ret['right'] = [ x for x in LojbanBase.raf_sets[self.index[2:]] ]
+        ret['bogus'] = self.find_bogus_rafsi()
+      #ret['bogus'] = ['blarg','buff','TODO','FIXME']
+    return ret
+  # back is no longer good use answers instead
 
   def front(self):
     'docstring'
     self.realize()
     if self.index:
-      return self.index
+      ans = self.answers()
+      #bogus=random.shuffle(ans['bogus'])
+      random.shuffle(ans['bogus'])
+      bogus = ans['bogus']
+      #ret = self.index + ' -- ' + string.join(bogus)
+      ret = self.index + ' -- ' + ' '.join(bogus)
+      return ret
     return 'You have completed this set'
 
   def back(self):
     'docstring'
-    #if self.index:
-    #  return self.cards[self.index][1]
+    ret = ''
+    if self.index:
+      ans = self.answers()
+      #ret = string.join(ans['right']) + ' -- ' + string.join(ans['bogus'])
+      #ret = string.join(ans['right'])
+      ret = ' '.join(ans['right'])
+      return ret
     return 'TODO back is deprecated for rafsi use FIXME'
-
-  def answers(self): pass
-  # back is no longer good use answers instead
 
 
 class LojbanByStatic(LojbanBase):
@@ -1286,7 +1412,7 @@ class FlashCardWind:
     return False
 
   def __init__(self, data_set=None, tmodel=None, titer=None, time_limit=55.0):
-    self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+    self.window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
     self.window.set_title("flash cards")
     self.window.set_border_width(10)
     self.window.connect("delete_event", self.cb_delete_event)
@@ -1296,13 +1422,13 @@ class FlashCardWind:
     self.tmodel = tmodel
     self.titer = titer
 
-    self.vb = gtk.VBox(False, 0)
+    self.vb = Gtk.VBox()
     self.window.add(self.vb)
 
-    frame = gtk.Frame("Front")
-    self.front = gtk.TextView()
+    frame = Gtk.Frame(label="Front")
+    self.front = Gtk.TextView()
     self.front.set_editable(False)
-    self.front.set_wrap_mode(gtk.WRAP_WORD)
+    self.front.set_wrap_mode(Gtk.WrapMode.WORD)
     self.front.get_buffer().set_text(data_set.front())
     frame.add(self.front)
     self.vb.pack_start(frame, True, False, 0)
@@ -1311,40 +1437,40 @@ class FlashCardWind:
     self.front.show()
     frame.show()
 
-    self.abar = gtk.HBox(False, 0)
+    self.abar = Gtk.HBox()
     self.vb.pack_start(self.abar, True, False, 0)
 
-    self.ans = gtk.Entry(48)
+    self.ans = Gtk.Entry()
     self.ans.set_width_chars(48)
     self.abar.pack_start(self.ans, True, False, 0)
     self.ans.connect("activate", self.done_cb, 0)
     self.ans.show()
 
-    self.done_butt = gtk.Button("Done")
+    self.done_butt = Gtk.Button("Done")
     self.abar.pack_start(self.done_butt, True, False, 0)
     self.done_butt.connect("clicked", self.done_cb, 0)
     self.done_butt.show()
 
-    self.skip_butt = gtk.Button("Skip")
+    self.skip_butt = Gtk.Button("Skip")
     self.abar.pack_start(self.skip_butt, True, False, 0)
     self.skip_butt.connect("clicked", self.skip_cb, 0)
     self.skip_butt.show()
 
-    self.hear_butt = gtk.Button("Hear TODO")
+    self.hear_butt = Gtk.Button("Hear TODO")
     self.abar.pack_start(self.hear_butt, True, False, 0)
     self.hear_butt.connect("clicked", self.hear_cb, 0)
     self.hear_butt.show()
     #self.hear_butt.set_sensitive(False)
 
-    self.cbar = gtk.HBox(False, 0)
+    self.cbar = Gtk.HBox()
     self.vb.pack_start(self.cbar, True, False, 0)
 
-    self.yes_butt = gtk.Button("I remember")
+    self.yes_butt = Gtk.Button("I remember")
     self.cbar.pack_start(self.yes_butt, True, False, 0)
     self.yes_butt.connect("clicked", self.yes_cb, 0)
     self.yes_butt.show()
 
-    self.no_butt = gtk.Button("I forgot or never knew")
+    self.no_butt = Gtk.Button("I forgot or never knew")
     self.cbar.pack_start(self.no_butt, True, False, 0)
     self.no_butt.connect("clicked", self.no_cb, 0)
     self.no_butt.show()
@@ -1354,10 +1480,10 @@ class FlashCardWind:
 
     self.cbar.show()
 
-    frame = gtk.Frame("Back")
-    self.back = gtk.TextView()
+    frame = Gtk.Frame(label="Back")
+    self.back = Gtk.TextView()
     self.back.set_editable(False)
-    self.back.set_wrap_mode(gtk.WRAP_WORD)
+    self.back.set_wrap_mode(Gtk.WrapMode.WORD)
     self.back.get_buffer().set_text("???")
     frame.add(self.back)
     self.vb.pack_start(frame, True, False, 0)
@@ -1432,14 +1558,16 @@ class SetChooser:
     #  FlashCardWind(flash_set_test0())
       
   def act_cb(self, widget, data=0):
-    'callback'
+    'act callback'
+    print 'act callback'
     self.activate_helper()
     return False
 
   # kludge to handle that the different subsets are getting too big
   # to have more than one open and still fit on the screen
-  def expand_cb(self, treeview, itera, path, data=0):
-    'callback'
+  def expand_cb(self, treeview, itera, path=None, data=0):
+    'expand callback'
+    print 'expand callback'
     #print "got path ", path , " " , self.last_expanded 
     # BUG FIXME when I put in nested hierarchy it broke bad
     if self.last_expanded and path != self.last_expanded:
@@ -1447,10 +1575,12 @@ class SetChooser:
       #print "got old path ", self.last_expanded  
       #treeview.collapse_row(self.last_expanded)
     self.last_expanded = path
+    print 'expand callback exited'
     return False
 
   def row_active_cb(self, tvw, path, vcolumn):
-    'callback'
+    'row active callback'
+    print 'row active callback'
     self.activate_helper()
     #print 'activated'
     return False
@@ -1462,49 +1592,51 @@ class SetChooser:
     return False
 
   def curs_chan_cb(self, data=None):
-    'callback'
+    'cursor change callback'
+    print 'cursor change callback'
     self.ch_butt.set_active(False)
 
-  def cdf_name(self, treeviewcolumn, cell_renderer, model, itera):
+  def cdf_name(self, treeviewcolumn, cell_renderer, model, itera, data):
     'name'
     cell_renderer.set_property('text',
        model.get_value(itera, 0).name)
-  def cdf_total(self, treeviewcolumn, cell_renderer, model, itera):
+  def cdf_total(self, treeviewcolumn, cell_renderer, model, itera, data):
     'total'
     cell_renderer.set_property('text',
        str(model.get_value(itera, 0).total(model, itera)))
-  def cdf_todo(self, treeviewcolumn, cell_renderer, model, itera):
+  def cdf_todo(self, treeviewcolumn, cell_renderer, model, itera, data):
     'todo'
     cell_renderer.set_property('text',
        str(model.get_value(itera, 0).todo(model, itera)))
-  def cdf_done(self, treeviewcolumn, cell_renderer, model, itera):
+  def cdf_done(self, treeviewcolumn, cell_renderer, model, itera, data):
     'done'
     cell_renderer.set_property('text',
       str(model.get_value(itera, 0).done(model, itera)))
-  def cdf_expire_h16(self, treeviewcolumn, cell_renderer, model, itera):
+  def cdf_expire_h16(self, treeviewcolumn, cell_renderer, model, itera, data):
     'expire 16 hour'
     cell_renderer.set_property('text',
       str(model.get_value(itera, 0).expire_h16(model, itera)))
-  def cdf_when(self, treeviewcolumn, cell_renderer, model, itera):
+  def cdf_when(self, treeviewcolumn, cell_renderer, model, itera, data):
     'when'
     cell_renderer.set_property('text',
       str(model.get_value(itera, 0).suggested_time(model, itera)))
-  def cdf_last_time(self, treeviewcolumn, cell_renderer, model, itera):
+  def cdf_last_time(self, treeviewcolumn, cell_renderer, model, itera, data):
     'last time'
     cell_renderer.set_property('text',
       str(model.get_value(itera, 0).suggested_last_time(model, itera)))
 
   def __init__(self):
-    window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+    window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
     window.set_title("flash card -- set chooser")
     window.set_border_width(10)
-    window.connect("destroy", lambda wid: gtk.main_quit())
-    window.connect("delete_event", lambda a1, a2:gtk.main_quit())
+    window.connect("destroy", lambda wid: Gtk.main_quit())
+    window.connect("delete_event", lambda a1, a2:Gtk.main_quit())
 
-    vbx = gtk.VBox(False, 0)
+    #vbx = Gtk.VBox(False, 0)
+    vbx = Gtk.VBox()
     window.add(vbx)
 
-    self.tstore = gtk.TreeStore(object)
+    self.tstore = Gtk.TreeStore(object)
     topi = self.tstore.append(None, (RowTotal("lojban"),))
 
     try:
@@ -1512,21 +1644,21 @@ class SetChooser:
       #for vcnt in [ 35,70,140,280,420,490,560,615,667 ]:
       #for vcnt in [ 420,455,490,525,560,615,667 ]:
       #for vcnt in [ 35, 70, 140]:
-      for vcnt in [ 35 ]:
+      for vcnt in [ 3 ]:
         self.tstore.append(piter, (LojbanByF('cmavo', vcnt),))
       # FIXME TODO I've come to realize that fixed sized sets
       # wasn't the best way .
       # they should have been able to grow in size more smoothly FIXME
       piter = self.tstore.append(topi, (RowTotal("Gismu by Frequency"),))
       #for vcnt in [ 45, 85, 170, 340, 510, 671, 805, 939, 1073, 1207, 1342 ]:
-      for vcnt in [ 45 ]:
+      for vcnt in [ 4 ]:
         self.tstore.append(piter, (LojbanByF('gismu', vcnt),))
       piter = self.tstore.append(topi, (RowTotal("Valsi by Frequency"),))
       #for vcnt in [ 45,90,180,375,750,912,1075,1230,1386,1542,1697,1853,2009]:
       #for vcnt in [ 1075,1110,1145,1180,1215,1250]:
       #for vcnt in [ 1250,1285,1320,1355,1390,1425]:
       #for vcnt in [ 45, 90, 180]:
-      for vcnt in [ 45 ]:
+      for vcnt in [ 4 ]:
         self.tstore.append(piter, (LojbanByF('valsi', vcnt),))
     except IOError , prob:
       print 'io error: ' , prob
@@ -1600,43 +1732,48 @@ class SetChooser:
       print 'run time error: ' , prob
     # gismu ki'i lo cmavo be zo bai
 
-    self.treeview = gtk.TreeView(self.tstore)
+    topi = self.tstore.append(None, (RowTotal("Army"),))
+    topi = self.tstore.append(None, (RowTotal("Radio"),))
+
+
+
+    self.treeview = Gtk.TreeView(model=self.tstore)
     self.treeview.connect("row-activated", self.row_active_cb)
     self.last_expanded = None
-    self.treeview.connect("test-expand-row", self.expand_cb)
+    #self.treeview.connect("test-expand-row", self.expand_cb)
     self.treeview.connect("cursor-changed", self.curs_chan_cb)
 
-    col_name = gtk.TreeViewColumn(
+    col_name = Gtk.TreeViewColumn(
             '     Name                                              ')
     # has lots of white-space to reserve space
     # and avoid certain display glitches
     self.treeview.append_column(col_name)
-    cell = gtk.CellRendererText()
+    cell = Gtk.CellRendererText()
     col_name.pack_start(cell, True)
     #self.col_name.add_attribute(self.cell, 'text', 0)
     col_name.set_cell_data_func(cell, self.cdf_name)
 
-    coln = gtk.TreeViewColumn('  Todo  ')
+    coln = Gtk.TreeViewColumn('  Todo  ')
     self.treeview.append_column(coln)
-    cell = gtk.CellRendererText()
+    cell = Gtk.CellRendererText()
     coln.pack_start(cell, True)
     coln.set_cell_data_func(cell, self.cdf_todo)
 
-    coln = gtk.TreeViewColumn('  Total  ')
+    coln = Gtk.TreeViewColumn('  Total  ')
     self.treeview.append_column(coln)
-    cell = gtk.CellRendererText()
+    cell = Gtk.CellRendererText()
     coln.pack_start(cell, True)
     coln.set_cell_data_func(cell, self.cdf_total)
 
-    coln = gtk.TreeViewColumn('  When               ')
+    coln = Gtk.TreeViewColumn('  When               ')
     self.treeview.append_column(coln)
-    cell = gtk.CellRendererText()
+    cell = Gtk.CellRendererText()
     coln.pack_start(cell, True)
     coln.set_cell_data_func(cell, self.cdf_when)
 
-    coln = gtk.TreeViewColumn('  Last Time          ')
+    coln = Gtk.TreeViewColumn('  Last Time          ')
     self.treeview.append_column(coln)
-    cell = gtk.CellRendererText()
+    cell = Gtk.CellRendererText()
     coln.pack_start(cell, True)
     coln.set_cell_data_func(cell, self.cdf_last_time)
 
@@ -1644,32 +1781,40 @@ class SetChooser:
     self.treeview.show_all()
     vbx.pack_start(self.treeview, True, False, 0)
 
-    #self.time_limit=gtk.ScaleButton(-1,0,90,1)
-    self.time_limit = gtk.Adjustment(55, 0, 100)
-    tls = gtk.HScale(self.time_limit)
+    #self.time_limit=Gtk.ScaleButton(-1,0,90,1)
+    self.time_limit = Gtk.Adjustment(55.0, 0.0, 100.0)
+    tls = Gtk.HScale(adjustment=self.time_limit)
     tls.show()
     vbx.pack_start(tls, True, False, 0)
 
-    butt =  gtk.Button("Activate Set")
+    butt =  Gtk.Button("Activate Set")
     butt.connect("clicked", self.act_cb, 0)
     butt.show()
     vbx.pack_start(butt, True, False, 0)
 
-    reset_bar = gtk.HBox(False, 0)
-    self.ch_butt = gtk.CheckButton()
+    reset_bar = Gtk.HBox()
+    self.ch_butt = Gtk.CheckButton()
     self.ch_butt.connect("toggled", self.safety_cb, 0)
     reset_bar.pack_start(self.ch_butt, True, False, 0)
-    self.dbutt =  gtk.Button("Destroy Set")
+    self.dbutt =  Gtk.Button("Destroy Set")
     self.dbutt.connect("clicked", self.reset_cb, 0)
     self.ch_butt.show()
     self.dbutt.show()
     self.dbutt.set_sensitive(False)
     reset_bar.show()
     # FIXME don't show yet because of BUG
-    frame = gtk.Frame("remove old sets; protected by extra button")
+    #sepp=Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+    sepp = Gtk.HSeparator()
+    sepp.set_size_request(10, 10)
+    sepp.show()
+    vbx.pack_start(sepp, True, False, 0)
+    #frame = Gtk.Frame(label="remove old sets; protected by extra button",
+    #           shadow_type=Gtk.ShadowType.IN)
+    frame = Gtk.Frame(label="remove old sets; protected by extra button")
     reset_bar.pack_start(self.dbutt, True, False, 0)
     frame.add(reset_bar)
     frame.show()
+    frame.show_all()
     vbx.pack_start(frame, True, False, 0)
 
     vbx.show()
@@ -1677,4 +1822,4 @@ class SetChooser:
 
 if __name__ == "__main__":
   SetChooser()
-  gtk.main()
+  Gtk.main()
