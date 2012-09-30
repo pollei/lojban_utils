@@ -1,0 +1,56 @@
+ attempts to be flash card program; has some lojban specific quirks
+ will add things for US Army and radio
+
+ copyright (C) 2009/2012 "Stephen Joseph Pollei" <stephen.pollei@gmail.com>
+ licensed gplv3 or later -- http://www.fsf.org/licensing/licenses/gpl.html
+
+uses python2 and gtk3
+
+ http://www.lojban.org/tiki/tiki-index.php?page=Software%20assisted%20learning
+ there are other alternatives as well
+ I've heard great things about anki and supermemeo
+
+ It needs to have cmavo.txt and gismu.txt in a location that it can find them
+ I did add stuff so that it will attempt to download the lojban vocab it needs
+ http://www.lojban.org/publications/wordlists/cmavo.txt
+ http://www.lojban.org/publications/wordlists/gismu.txt
+ http://www.lojban.org/publications/wordlists/lujvo.txt
+ It also wants valsi_f.txt, which can be created by downloaded big_list
+ and trimming it
+ http://digitalkingdom.org/~rlpowell/hobbies/lojban/flashcards/big_list
+ cut -f1 big_list > valsi_f.txt
+
+ WARNING this is currently alpha level software and I plan on doing
+ non-backwards compatible changes to the "progress data" persistent storage
+ so don't be surprised on problems and possible data loss if you upgrade
+
+ http://en.wikipedia.org/wiki/Spaced_repetition
+ http://en.wikipedia.org/wiki/Pimsleur_language_learning_system
+ pimsleur uses 5 seconds, 25 seconds, 2 minutes, 10 minutes, 1 hour, 5 hours,
+    1 day, 5 days, 25 days, 4 months, 2 years
+ pimsleur uses phrases not singular words
+ http://en.wikipedia.org/wiki/Sebastian_Leitner
+ http://en.wikipedia.org/wiki/Flashcard
+ http://en.wikipedia.org/wiki/SuperMemo
+ http://headinside.blogspot.com/2009/04/more-free-flashcard-sites.html
+ http://en.wikipedia.org/wiki/Spacing_effect
+ https://ww5.pimsleurapproach.com/
+
+ http://www.wired.com/medtech/health/magazine/16-05/ff_wozniak?currentPage=2
+ Want to Remember Everything You'll Ever Learn? Surrender to This Algorithm
+
+ this program uses a home-brew spaced repetition
+ for times less than a day or so, it roughly increases the time between
+ flashing using a exponential growth formula that takes into consideration
+ how much work needs to be done soon
+ if the increase between flashing would itself increase by more than a day
+ we cap it
+
+ http://how-to-learn-any-language.com/e/books/how-to-learn-any-language.html
+ http://www.language-learning-advisor.com/review-barry-farber.html
+ I might want to add support for the "plunge" method
+
+ for rafsi and lujvo I desire better lists of lujvo and stage 3 fu'ivla
+ http://jbovlaste.lojban.org/
+ http://www.lojban.org/tiki/tiki-index.php?page=lo+valsi+po+la+nicte+cadzu&bl=y
+
