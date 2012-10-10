@@ -31,8 +31,9 @@ class LojbanBase(generic_cards.SetBase):
   'lojban base foundation'
   #now =0
   shared_cards = {}
+  rafsi_cards = {}
   gismu_morna = re.compile("[bcdfgjklmnpqrstvxz][bcdfgjklmnpqrstvxz][aeiou]")
-  da_morna = re.compile("[a-z]{0,2}[aeiou][a-z']{0,2}")
+  da_morna = re.compile("[a-z]{0,2}[aeiou][a-z']{0,3}")
   selmaho = {}
   raf_sets = {}
   raf_map = {}
@@ -88,19 +89,23 @@ class LojbanBase(generic_cards.SetBase):
     for line in gf:
       word = line[1:6].rstrip()
       if LojbanBase.gismu_morna.search(word):
-        LojbanBase.shared_cards[word + "0"] = ( word, line[7:])
-        LojbanBase.shared_cards[word + "1"] = (
+        LojbanBase.shared_cards[word] = {}
+        LojbanBase.shared_cards[word]['0'] = ( word, line[7:])
+        LojbanBase.shared_cards[word]['1'] = (
                              line[20:61] + "gismu" , line[1:] )
         #print line[1:6], '---', line[7:19], '---',line[20:61]'---',line[62:]
       if LojbanBase.da_morna.search(word):
         if LojbanBase.da_morna.search(line[7:19]):
+          LojbanBase.rafsi_cards[word] = {}
           #print line[1:6], '-', line[7:10] , '-',line[11:14], '-',line[15:19]
           LojbanBase.raf_sets[word] = set([x.rstrip()
               for x in [line[7:10],line[11:14],line[15:19]]
               if LojbanBase.da_morna.search(x) ] )
+          LojbanBase.rafsi_cards[word][word] = LojbanBase.raf_sets[word]
           for x in LojbanBase.raf_sets[word] :
             #print x, '-->',word
             LojbanBase.raf_map[x] = word
+            LojbanBase.rafsi_cards[word][x] = word
     gf.close()
     cf = self.kar( "cmavo.txt")
     cp = re.compile("[a-z']+")
@@ -116,6 +121,7 @@ class LojbanBase(generic_cards.SetBase):
       spm = selmaho_pat.match(line[11:19])
       if cpm and spm:
         word = line[1:11].strip(' ')
+        LojbanBase.shared_cards[word] = {}
         bonus = ""
         bpm = bp.match(line[62:])
         if baip.match(line[11:19]):
@@ -128,8 +134,8 @@ class LojbanBase(generic_cards.SetBase):
           LojbanBase.selmaho[smw].append(word)
         else:
           LojbanBase.selmaho[smw] = [word]
-        LojbanBase.shared_cards[word + "0"] = ( word , line[11:])
-        LojbanBase.shared_cards[word + "1"] = (line[20:62] + bonus, line[1:])
+        LojbanBase.shared_cards[word]['0'] = ( word , line[11:])
+        LojbanBase.shared_cards[word]['1'] = (line[20:62] + bonus, line[1:])
         #print word, ' ++ ',line[1:11],'---',line[11:19],'---'
         #print line[20:62] + bonus, '---',line[62:]
     cf.close()
@@ -190,9 +196,9 @@ class LojbanBase(generic_cards.SetBase):
 
   def sound(self):
     'make a sound using espeak'
-    if not self.index:
+    if not self.cc:
       return ''
-    strg = self.index[0:-1]
+    strg = self.cc.group
     cmavo_pat = re.compile(
        "([bcdfgjklmnpqrstvxz]?[aeiouy\']+)([bcdfgjklmnpqrstvxz][aeiouy\']+)")
     cpm = cmavo_pat.match(str)
@@ -217,63 +223,6 @@ class LojbanBase(generic_cards.SetBase):
   def gen_word_list(self):
     'generate word list -- needs to be overridden'
 
-# create set has gotten too ugly to live
-# combines creation from scratch with
-# two different ways of copying from another set
-  def create_set(self, o_set=None, copy_how=0):
-    'create set'
-    #print ' super creating ', self.name, ' begin '
-    wlist = self.gen_word_list()
-    now = self.hard_now()
-    et = now -12.0
-    #min_et = len(wlist) + 4*min(900,len(wlist))
-
-    min_et = min(240, 2*len(wlist))
-    rgt = et - 0.5
-    rbt = rgt -999.9
-    for word in wlist:
-      try:
-        e0 = o_set.set[word+'0']['expire'] - (
-          max(o_set.set[word+'0']['lgood'],o_set.set[word+'0']['lbad']))
-        e1 = o_set.set[word+'1']['expire'] - (
-          max(o_set.set[word+'1']['lgood'],o_set.set[word+'1']['lbad']))
-        if 0 == copy_how:
-          # some of the sets duplicate things from other sets
-          # this makes your hard work on extending earlier expire times
-          # make these expire times longer as well 
-          gt = et - max(min_et, 0.75*min(e0, e1))
-          #if gt < rgt : print 'super creation worked for ' , word
-          bt = gt - 999.9
-        else:
-          # the second copy_how way does a more direct copy
-          # if you know the word well
-          bad0 = o_set.set[word+'0']['lbad'] > o_set.set[word+'0']['lgood']
-          bad1 = o_set.set[word+'1']['lbad'] > o_set.set[word+'1']['lgood']
-          if bad0 or bad1 or e0 < min_et or e1 < min_et :
-            gt = rgt
-            bt = rbt
-          else :
-            #print 'super direct creation worked for ' , word
-            self.pjs.set[word+'0'] = { 'expire':  o_set.set[word+'0']['expire'],
-                'lgood': o_set.set[word+'0']['lgood'],
-                'lbad': o_set.set[word+'0']['lbad'] }
-            self.pjs.set[word+'1'] = { 'expire':  o_set.set[word+'1']['expire'],
-                'lgood': o_set.set[word+'1']['lgood'],
-                'lbad': o_set.set[word+'1']['lbad'] }
-            continue
-      except:
-        gt = rgt
-        bt = rbt
-        # if the set didn't exist in the old original set then
-        # a KeyError exception will be raised and we can use a sane default
-      r0 = 7.9*random.random()
-      r1 = 7.9*random.random()
-      self.pjs.set[word+'0'] = { 'expire':  et, 'lgood': gt-r0, 'lbad': bt}
-      self.pjs.set[word+'1'] = { 'expire':  et, 'lgood': gt-r1, 'lbad': bt}
-    self.total_cnt = len(wlist)*2
-    self.todo_cnt = self.total_cnt
-    #print ' super creating ', self.name, ' size ', self.total_cnt
-    self.stub = False
 
   def __init__(self, name, cl=False):
     generic_cards.SetBase.__init__(self, name, cl)
@@ -282,15 +231,16 @@ class LojbanByF(LojbanBase):
   'lojban by frequency'
   byf_lists = {'valsi': [], 'gismu': [] , 'cmavo':[], 'rafsi':[] }
 
-  def __init__(self, typen, vcnt):
+  def __init__(self, typen, vcnt=10):
     self.type_name = typen
     self.valsi_cnt = vcnt
     self.wants_super_creation = True
-    LojbanBase.__init__(self, typen + ' ' + str(vcnt), True)
+    LojbanBase.__init__(self, typen , True)
+    self.ordered_list = True
     #self.can_launch = True
     if self.stub:
-      self.todo_cnt = 2*vcnt
-      self.total_cnt = 2*vcnt
+      self.stats['todo_cnt'] = 600
+      self.stats['total_cnt'] = 600
 
   def init_valsi_byf_list(self):
     'initialize words by frequency list'
@@ -329,129 +279,14 @@ class LojbanByF(LojbanBase):
     #self.word_order = LojbanByF.byf_lists[self.type_name]
     return LojbanByF.byf_lists[self.type_name][:self.valsi_cnt]
 
-  def grow_set(self, amount):
-    'grow a set'
-    #self.total_cnt= self.total_cnt+2*amount
-    start_ind = self.total_cnt//2
-    wl_sz = len( LojbanByF.byf_lists[self.type_name])
-    if start_ind >= wl_sz :
-      return
-
-    # FIXME AUDIT a lot of this only triggers near the end,
-    # so is under tested FIXME AIDIT
-    left_sz = wl_sz-start_ind
-    if amount > left_sz : amount = left_sz
-    if left_sz < 50 :
-      if left_sz > 24 :
-        if amount > left_sz//2 +1 and left_sz-amount < 12 and amount < left_sz :
-          amount = left_sz//2 +1
-
-    end_ind = start_ind + amount
-    add_list = LojbanByF.byf_lists[self.type_name][start_ind:end_ind]
-    now = self.soft_now()
-    et = now -12.0
-    min_et = min(240, 2*end_ind)
-    gt = et - 0.5
-    bt = gt -999.9
-    for word in add_list :
-      print 'growing ', word
-      r0 = 7.9*random.random()
-      r1 = 7.9*random.random()
-      self.pjs.set[word+'0'] = { 'expire':  et, 'lgood': gt-r0, 'lbad': bt}
-      self.pjs.set[word+'1'] = { 'expire':  et, 'lgood': gt-r1, 'lbad': bt}
-      if self.pjs.set[word+'0']['lgood'] < self.pjs.set[word+'1']['lgood'] :
-        self.expired_queue.append(word+'0')
-      else :
-        self.expired_queue.append(word+'1')
-    self.total_cnt = self.total_cnt+2*amount
-    self.todo_cnt = self.todo_cnt+2*amount
-    self.expire_h16_cnt = self.expire_h16_cnt+2*amount
-
-  # limit the number of expired things found to first 400
-  #  grow the list if it's too short
-  def find_expired(self, force=False):
-    #print 'finding expired for ', self.name
-    now = self.soft_now()
-    if now > (self.last_find_expired + 787.0) :
-      force = True
-    if len(self.expired_queue) or len(self.wrong_queue) :
-      if force:
-        self.index = None
-        self.expired_queue = []
-        self.wrong_queue = []
-      else:
-        return
-    self.last_find_expired = now
-    self.expire_h16_cnt = 0
-    #print 'finding expired for ', self.name
-    for item in self.pjs.set.keys():
-      if now > (self.pjs.set[item]['expire'] - 57600):
-        self.expire_h16_cnt = self.expire_h16_cnt + 1
-    dt_fresh = max(350, 100+self.expire_h16_cnt)
-    #print 'dt_fresh: ',dt_fresh, ' total_cnt:', self.total_cnt
-    fresh_cnt = 0
-    stale_cnt = 0
+  def gen_group_list(self):
+    'generate word list'
+    if self.type_name == 'valsi': 
+      self.init_valsi_byf_list()
+    else:
+      self.init_byf_lists()
     #self.word_order = LojbanByF.byf_lists[self.type_name]
-    #print 'type name:', self.type_name
-    #print 'word size list',len(LojbanByF.byf_lists[self.type_name])
-    if len(LojbanByF.byf_lists[self.type_name]) == 0 :
-      self.gen_word_list()
-    #for word in LojbanByF.byf_lists[self.type_name][:self.total_cnt/2]:
-    for word in LojbanByF.byf_lists[self.type_name][:self.total_cnt//2]:
-      #print 'evaluating:', word
-      if (now >  self.pjs.set[word+'0']['expire'] +115200) :
-        stale_cnt = stale_cnt +1
-        #print 'stale ', word, ' ', self.pjs.set[word+'0']['expire']-115200 
-        if stale_cnt > 110 :
-          break
-      if (now >  self.pjs.set[word+'1']['expire'] +115200):
-        stale_cnt = stale_cnt +1
-        if stale_cnt > 110 :
-          break
-
-      # only put one of the pairs in at a time
-      # and not too soon after another was answered
-      la0 = max( self.pjs.set[word+'0']['lgood'] ,
-                 self.pjs.set[word+'0']['lbad'] )
-      la1 = max( self.pjs.set[word+'1']['lgood'] ,
-                 self.pjs.set[word+'1']['lbad'] )
-      twin_t = min(36987.6,
-         (self.pjs.set[word+'0']['expire']- la0 ) ,
-         (self.pjs.set[word+'1']['expire']- la1 ) )/5.0
-      ex0 = now > self.pjs.set[word+'0']['expire'] and now > la1+twin_t
-      ex1 = now > self.pjs.set[word+'1']['expire'] and now > la0+twin_t
-
-      if ex0 and ex1 :
-        if self.pjs.set[word+'0']['expire'] < self.pjs.set[word+'1']['expire'] :
-          self.expired_queue.append(word+'0')
-        else :
-          self.expired_queue.append(word+'1')
-      elif ex0 :
-        self.expired_queue.append(word+'0')
-      elif ex1 :
-        self.expired_queue.append(word+'1')
-
-      if dt_fresh > (self.pjs.set[word+'0']['expire']-
-                     self.pjs.set[word+'0']['lgood']) :
-        fresh_cnt = fresh_cnt +1
-      if dt_fresh > (self.pjs.set[word+'1']['expire']-
-                     self.pjs.set[word+'1']['lgood']) :
-        fresh_cnt = fresh_cnt +1
-    eq_sz = len(self.expired_queue)
-    self.todo_cnt = eq_sz
-    work_max = int(min(15, (self.end_time-now)/8.6))
-    hard_cnt = min(fresh_cnt+stale_cnt, eq_sz//3)
-    grow_sz = min(5,(110-hard_cnt)//2,(work_max-eq_sz-hard_cnt)//2)
-    print 'eq_sz:', eq_sz, ' grow_sz: ', grow_sz, ' stale_cnt:', stale_cnt
-    print ' fresh_cnt: ', fresh_cnt, ' work_max: ', work_max
-    print 'time left:', self.end_time-now , 'now:', now
-    if eq_sz > 100 :
-      self.expired_queue = self.expired_queue[:50]
-    elif eq_sz > 22 :
-      self.expired_queue = self.expired_queue[:eq_sz//2]
-    elif grow_sz > 0 :
-      self.grow_set(grow_sz)
-    random.shuffle(self.expired_queue)
+    return LojbanByF.byf_lists[self.type_name]
 
 class LojbanRafByF(LojbanByF):
   'lojban rafsi by frequency'
@@ -459,6 +294,7 @@ class LojbanRafByF(LojbanByF):
     LojbanByF.__init__(self, 'rafsi', 20)
     self.init_byf_lists()
     self.type_name = 'rafsi'
+    self.cards = LojbanBase.rafsi_cards
 
   def init_raf_list(self):
     'initialize raf list'
@@ -476,36 +312,14 @@ class LojbanRafByF(LojbanByF):
     #self.word_order = LojbanByF.byf_lists[self.type_name]
     return LojbanByF.byf_lists[self.type_name][:self.valsi_cnt]
 
-  # TODO FIXME these need to be overridden
-  def create_set(self):
-    'create set'
-    #print ' super creating ', self.name, ' begin '
-    wlist = self.gen_word_list()
-    self.pjs.so_far = len(wlist)
-    now = self.hard_now()
-    et = now -12.0
-    #min_et = len(wlist) + 4*min(900,len(wlist))
-
-    min_et = min(240, 2*len(wlist))
-    gt = et - min_et
-    bt = gt -999.9
-    for word in wlist:
-      self.pjs.set['V:'+word] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
-      for raf in LojbanBase.raf_sets[word]:
-        self.pjs.set['R:'+raf] = { 'expire':  et, 'lgood': gt, 'lbad': bt}
-    self.total_cnt = len(self.pjs.set)
-    self.todo_cnt = self.total_cnt
-    #print ' super creating ', self.name, ' size ', self.total_cnt
-    self.stub = False
-
-  def grow_set(self): pass
-  # TODO FIXME these need to be overridden
-
-  def find_expired(self):
-    SetBase.find_expired(self)
+  def gen_group_list(self):
+    'generate word list'
+    self.init_raf_list()
+    #self.word_order = LojbanByF.byf_lists[self.type_name]
+    return LojbanByF.byf_lists[self.type_name]
 
   def find_bogus_rafsi(self):
-    word = self.index[2:]
+    word = self.cc.group
     ccvcv = re.compile('[b-z][b-z][aeiou][b-z][aeiou]')
     cvccv = re.compile('[b-z][aeiou][b-z][b-z][aeiou]')
     if ccvcv.match(word) :
@@ -530,7 +344,7 @@ class LojbanRafByF(LojbanByF):
     return ret
 
   def find_bogus_valsi(self):
-    raf = self.index[2:]
+    raf = self.cc.item
     ret = []
     cvhv = re.compile('[b-z][aeiou]\'[aeiou]')
     cvv = re.compile('[b-z][aeiou][aeiou]')
@@ -587,12 +401,12 @@ class LojbanRafByF(LojbanByF):
   def answers(self):
     'return the right answers and some bogus but deceive worthy ones'
     ret = { 'right':[], 'bogus':[] }
-    if self.index:
-      if self.index[0] == 'R' :
-        ret['right'] = [ LojbanBase.raf_map[self.index[2:] ] ]
+    if self.cc:
+      if self.cc.item != self.cc.group :
+        ret['right'] = [ LojbanBase.raf_map[self.cc.item ] ]
         ret['bogus'] = self.find_bogus_valsi()
       else:
-        ret['right'] = [ x for x in LojbanBase.raf_sets[self.index[2:]] ]
+        ret['right'] = [ x for x in LojbanBase.raf_sets[self.cc.item] ]
         ret['bogus'] = self.find_bogus_rafsi()
       #ret['bogus'] = ['blarg','buff','TODO','FIXME']
     return ret
@@ -601,20 +415,20 @@ class LojbanRafByF(LojbanByF):
   def front(self):
     'docstring'
     self.realize()
-    if self.index:
+    if self.cc:
       ans = self.answers()
       #bogus=random.shuffle(ans['bogus'])
       random.shuffle(ans['bogus'])
       bogus = ans['bogus']
       #ret = self.index + ' -- ' + string.join(bogus)
-      ret = self.index + ' -- ' + ' '.join(bogus)
+      ret = self.cc.item + ' -- ' + ' '.join(bogus)
       return ret
     return 'You have completed this set'
 
   def back(self):
     'docstring'
     ret = ''
-    if self.index:
+    if self.cc.item:
       ans = self.answers()
       #ret = string.join(ans['right']) + ' -- ' + string.join(ans['bogus'])
       #ret = string.join(ans['right'])
@@ -639,6 +453,10 @@ class LojbanByStatic(LojbanBase):
     'generate word list'
     return self.all_list
 
+  def gen_group_list(self):
+    'generate word list'
+    return self.all_list
+
 # Maybe the by Cmavo Group should inherit from LojbanByStatic
 class LojbanByCG(LojbanBase):
   'lojban by cmavo group'
@@ -648,6 +466,13 @@ class LojbanByCG(LojbanBase):
     #self.can_launch = True
     if self.stub:
       self.create_set()
+
+  def gen_group_list(self):
+    'generate word list'
+    ret = []
+    for item in self.group_list:
+      ret = ret+LojbanBase.selmaho[item]
+    return ret
 
   def gen_word_list(self):
     'generate word list'

@@ -83,14 +83,15 @@ from gi.repository import Gtk
 # os.listdir, os.name 'posix' , os.mkdir
 
 import generic_cards, jbo_cards
+#import generic_cards
 
 # this Pjs is for legacy files only
-class Pjs:
-  'pickle jar storage'
-  def __init__(self):
-    self.set = {}
-    self.gset = {}
-    self.config = {}
+#class Pjs:
+#  'pickle jar storage'
+#  def __init__(self):
+#    self.set = {}
+#    self.gset = {}
+#    self.config = {}
 
 class RowTotal(generic_cards.UtilBase):
   'row total'
@@ -110,7 +111,7 @@ class RowTotal(generic_cards.UtilBase):
 
   def scan(self, model, itera):
     'scan'
-    now = self.hard_now()
+    now = generic_cards.update_cached_time()
     if now > self.last_scan + 3:
       self.last_scan = now
       self.total_cnt = 0
@@ -498,6 +499,10 @@ class SetChooser:
       print 'not implemeted error: ' , prob
     except RuntimeError, prob:
       print 'run time error: ' , prob
+    except StandardError, prob :
+      print 'standard error: ', prob
+    except Exception, prob :
+      print 'omg error: ', prob
 
     # I use two try blocks because the below might still work
     # if you have gismu.txt and cmavo.txt but not valsi_f.txt
@@ -565,11 +570,42 @@ class SetChooser:
       print 'not implemeted error: ' , prob
     except RuntimeError, prob:
       print 'run time error: ' , prob
+    except StandardError, prob :
+      print 'standard error: ', prob
+    except Exception, prob :
+      print 'omg error: ', prob
     # gismu ki'i lo cmavo be zo bai
 
+    soldier_creed = [ 
+      'I am an American Soldier.',
+      'I am a warrior and a member of a team.',
+      'I serve the people of the United States and live the Army Values.',
+      'I will always place the mission first',
+      'I will never accept defeat',
+      'I will never quit',
+      'I will never leave a fallen comrade',
+      'I am disciplened, physically and mentally tough,',
+      'trained and proficient in my warrior tasks and drills',
+      'I always maintain my arms, my equipment, and myself.',
+      'I am an expert and I am a professional.',
+      'I stand ready to deploy, engage, and destroy the enemies',
+      'of the United States of America in close combat.',
+      'I am a guardian of freedom and the American way of life',
+      'I am an American Soldier.',
+    ]
     topi = self.tstore.append(None, (RowTotal("Army"),))
+    self.tstore.append(topi, (
+      generic_cards.OldSeqBase('Army Values',
+       ['*Loyalty','*Duty','*Respect','*Selfless-Service',
+        '*Honor','*Integrity','*Personal Courage'],0 ),
+      ) )
+    self.tstore.append(topi, (
+      generic_cards.OldSeqBase("Soldier's Creed", soldier_creed,0 ),) )
     topi = self.tstore.append(None, (RowTotal("Radio"),))
+    topi = self.tstore.append(None, (RowTotal("Testing"),))
 
+    self.tstore.append(topi, (generic_cards.InlineBase("test numbers",
+           [['1','pa'],['2','re'],['3','ci'],['4','vo'],['5','mu']] ),) )
 
 
     self.treeview = Gtk.TreeView(model=self.tstore)
