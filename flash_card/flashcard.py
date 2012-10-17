@@ -82,7 +82,7 @@ from gi.repository import Gtk
 #import re, random, time, cPickle, os, urllib, sys
 # os.listdir, os.name 'posix' , os.mkdir
 
-import generic_cards, jbo_cards
+import generic_cards, jbo_cards, ham_cards
 #import generic_cards
 
 # this Pjs is for legacy files only
@@ -601,7 +601,28 @@ class SetChooser:
       ) )
     self.tstore.append(topi, (
       generic_cards.OldSeqBase("Soldier's Creed", soldier_creed,0 ),) )
+
     topi = self.tstore.append(None, (RowTotal("Radio"),))
+    try:
+      self.tstore.append(topi,
+            (ham_cards.HamBase("FCC Technician",'ham_tech.txt'),) )
+      self.tstore.append(topi,
+            (ham_cards.HamBase("FCC General",'ham_general.txt'),) )
+      self.tstore.append(topi,
+            (ham_cards.HamBase("FCC Extra",'ham_extra.txt'),) )
+    except IOError , prob:
+      print 'io error: ' , prob
+      # FIXME TODO should make an error window
+      # or otherwise show the error in the gui
+    except NotImplementedError , prob:
+      print 'not implemeted error: ' , prob
+    except RuntimeError, prob:
+      print 'run time error: ' , prob
+    except StandardError, prob :
+      print 'standard error: ', prob
+    except Exception, prob :
+      print 'omg error: ', prob
+
     topi = self.tstore.append(None, (RowTotal("Testing"),))
 
     self.tstore.append(topi, (generic_cards.InlineBase("test numbers",

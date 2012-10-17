@@ -43,7 +43,7 @@ def last_answer_time_from_group(iset) :
 def expired_item_time(item,lat=0.0):
   age = item['expire'] - max(item['lgood'],item['lbad'])
   #age = max(age - 18.8, 0.1)
-  twin_t =min(36987.6,max(age/25.2,min(57.2,age/2.4)))
+  twin_t =min(36987.6,max(age/38.2,min(77.2,age/2.7)))
   return max(item['expire'] , (lat + twin_t) )
 
 def is_expired_item(item,lat=0.0):
